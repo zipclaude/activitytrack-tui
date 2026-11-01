@@ -1,0 +1,7 @@
+activitytrack-tui (0.9.4~beta2) unstable; urgency=medium
+
+  * First release: the activities running and the Home list full screen,
+    with keys and popups; the sync in the background; on the data of the
+    desktop tray application and the command line (python3-activitytrack).
+
+ -- ActivityTrack <flavio-claude@zipman.it>  Sun, 01 Nov 2026 23:30:00 +0100

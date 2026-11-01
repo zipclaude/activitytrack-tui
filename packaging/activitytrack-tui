@@ -1,0 +1,12 @@
+#!/usr/bin/python3
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""activitytrack-tui, as installed by the package: the code in /usr/share/activitytrack-tui."""
+import sys
+
+sys.path.insert(0, "/usr/share/activitytrack-tui")
+# /usr/share is the package's: no bytecode written there (prerm removes any)
+sys.dont_write_bytecode = True
+
+from activitytrack_tui.main import main  # noqa: E402
+
+sys.exit(main())

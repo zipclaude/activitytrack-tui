@@ -1,0 +1,161 @@
+name: Release
+
+# A tag vX.Y.Z builds the Debian/Ubuntu packages, the tarball and the
+# Windows executable, tries them and publishes the GitHub Release. Run by
+# hand (workflow_dispatch) it does everything but publishing.
+on:
+  push:
+    tags: ["v*"]
+  # pull requests that touch the packaging try the packages too
+  pull_request:
+    paths: ["debian/**", "packaging/**", "requirements-*.txt", ".github/workflows/release.yml"]
+  workflow_dispatch:
+
+jobs:
+  deb:
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: "debian:trixie", suffix: deb13 }
+          - { image: "debian:forky", suffix: deb14 }
+          - { image: "ubuntu:24.04", suffix: ubuntu24.04 }
+          - { image: "ubuntu:26.04", suffix: ubuntu26.04 }
+    steps:
+      - name: Build tools
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates git \
+            build-essential debhelper dpkg-dev devscripts equivs man-db
+      - uses: actions/checkout@v4
+      - name: Version
+        run: |
+          V=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' activitytrack_tui/__init__.py)
+          # a release is built on a released library
+          case "$GITHUB_REF" in refs/tags/v*) test "v$V" = "${GITHUB_REF#refs/tags/}"; grep -q "^v" .github/lib-ref ;; esac
+          DV=$(echo "$V" | tr '-' '~')
+          grep -q "^activitytrack-tui ($DV)" debian/changelog
+          grep -q "activitytrack-tui $V" packaging/activitytrack-tui.1
+          sed -i "1s/($DV)/($DV~${{ matrix.suffix }})/" debian/changelog
+          head -1 debian/changelog
+      - name: The library's package (python3-activitytrack at .github/lib-ref)
+        run: |
+          git clone --depth 1 -b "$(cat .github/lib-ref)" https://github.com/zipclaude/python3-activitytrack /tmp/lib
+          cd /tmp/lib
+          DEBIAN_FRONTEND=noninteractive mk-build-deps -i -r -t "apt-get -y --no-install-recommends" debian/control
+          dpkg-buildpackage -b -us -uc
+          DEBIAN_FRONTEND=noninteractive apt-get install -y /tmp/python3-activitytrack_*.deb
+      - name: Package
+        run: |
+          dpkg-buildpackage -b -us -uc
+          mkdir dist && mv ../activitytrack-tui_*.deb dist/
+          dpkg-deb --info dist/*.deb
+          dpkg-deb --contents dist/*.deb
+      - name: Install
+        run: DEBIAN_FRONTEND=noninteractive apt-get install -y ./dist/*.deb
+      - name: Try it
+        run: |
+          activitytrack-tui --version
+          man -w activitytrack-tui
+          # the tests against the installed code, not the checkout's
+          mkdir /tmp/t && cp -r tests /tmp/t/ && cd /tmp/t
+          PYTHONPATH=/usr/share/activitytrack-tui python3 -m unittest discover -s tests -t . -v
+      - name: Remove
+        run: |
+          apt-get purge -y activitytrack-tui
+          test ! -e /usr/share/activitytrack-tui && test ! -e /usr/bin/activitytrack-tui
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ matrix.suffix }}
+          path: dist/*.deb
+
+  tarball:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tarball
+        run: |
+          V=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' activitytrack_tui/__init__.py)
+          mkdir dist
+          git archive --prefix="activitytrack-tui-$V/" -o "dist/activitytrack-tui-$V.tar.gz" HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tarball
+          path: dist/*.tar.gz
+
+  windows:
+    # one executable for the console, with windows-curses; not signed (no costs: desktop's D10)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Libraries and tools
+        run: |
+          python -m pip install -r requirements-build-windows.txt
+          python -m pip install "git+https://github.com/zipclaude/python3-activitytrack@$(Get-Content .github/lib-ref)"
+          # installed, so that PyInstaller finds its data files (the translations)
+          python -m pip install --no-deps .
+      - name: Version
+        run: |
+          $V = (Select-String -Path activitytrack_tui/__init__.py -Pattern '^__version__ = "(.*)"').Matches[0].Groups[1].Value
+          if ("$env:GITHUB_REF" -like "refs/tags/v*" -and "v$V" -ne "$env:GITHUB_REF_NAME") { throw "tag $env:GITHUB_REF_NAME, version $V" }
+          "AT_VERSION=$V" >> $env:GITHUB_ENV
+      - name: Tests
+        run: python -m unittest discover -s tests -t .
+      - name: Executable
+        run: |
+          pyinstaller --noconfirm --clean --onefile --console --name activitytrack-tui --paths . `
+            --collect-submodules keyring.backends --collect-data tzdata `
+            --collect-submodules activitytrack --collect-data activitytrack --collect-data activitytrack_tui `
+            packaging/windows-launcher.py
+      - name: Try it
+        run: |
+          dist/activitytrack-tui.exe --version
+          if ($LASTEXITCODE -ne 0) { throw "version: $LASTEXITCODE" }
+      - name: Zip
+        run: |
+          New-Item -ItemType Directory -Path pack | Out-Null
+          Copy-Item dist/activitytrack-tui.exe, LICENSE, README.md pack/
+          Compress-Archive -Path pack/* -DestinationPath "dist/activitytrack-tui-$env:AT_VERSION-windows.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/activitytrack-tui-*-windows.zip
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [deb, tarball, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { path: artifacts, merge-multiple: true }
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V="${GITHUB_REF#refs/tags/v}"
+          LIB=$(cat .github/lib-ref)
+          cd artifacts
+          for f in activitytrack-tui_*~*_all.deb; do mv "$f" "$(echo "$f" | tr '~' '-')"; done
+          sha256sum * > SHA256SUMS && cat SHA256SUMS && cd ..
+          {
+            case "$V" in *-*) echo "activitytrack-tui $V: a test release." ;; *) echo "activitytrack-tui $V." ;; esac
+            echo
+            echo "ActivityTrack in the terminal, full screen: the same application as ActivityTrack Desktop and the command line, on the same data and pairing."
+            echo
+            echo "- Debian 13 / 14, Ubuntu 24.04 / 26.04: \`apt install ./python3-activitytrack_${V}-<distro>_all.deb ./activitytrack-tui_${V}-<distro>_all.deb\`; the library [python3-activitytrack]($GITHUB_SERVER_URL/zipclaude/python3-activitytrack/releases/tag/$LIB) is in its own release"
+            echo "- Windows 10 / 11: \`activitytrack-tui-$V-windows.zip\`: \`activitytrack-tui.exe\`, to put in a folder of the PATH (Windows Terminal recommended). Not signed: check it against SHA256SUMS"
+            echo "- Elsewhere: \`pip install activitytrack-tui-$V.tar.gz\` after the library"
+          } > notes.md
+          case "$V" in *-*) pre=--prerelease ;; *) pre= ;; esac
+          gh release create "v$V" artifacts/* --title "activitytrack-tui $V" --notes-file notes.md $pre

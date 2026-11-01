@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "activitytrack-tui"
+dynamic = ["version"]
+description = "ActivityTrack in the terminal, full screen"
+readme = "README.md"
+license = { text = "GPL-3.0-or-later" }
+requires-python = ">=3.11"
+# the library brings cryptography, keyring and, on Windows, tzdata; Windows needs curses too
+dependencies = ["activitytrack>=0.9.4b2", "windows-curses; sys_platform == 'win32'"]
+
+[project.scripts]
+activitytrack-tui = "activitytrack_tui.main:main"
+
+[tool.setuptools]
+packages = ["activitytrack_tui"]
+
+[tool.setuptools.package-data]
+activitytrack_tui = ["locale/*.json"]
+
+[tool.setuptools.dynamic]
+version = { attr = "activitytrack_tui.__version__" }

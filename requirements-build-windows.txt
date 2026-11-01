@@ -1,0 +1,5 @@
+# The tools that make the Windows executable
+pyinstaller==6.22.3
+pyinstaller-hooks-contrib==2026.8
+# curses on Windows
+windows-curses==2.4.2

@@ -1,0 +1,26 @@
+Source: activitytrack-tui
+Section: utils
+Priority: optional
+Maintainer: ActivityTrack <flavio-claude@zipman.it>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.7.0
+Homepage: https://github.com/zipclaude/activitytrack-tui
+Vcs-Git: https://github.com/zipclaude/activitytrack-tui.git
+Vcs-Browser: https://github.com/zipclaude/activitytrack-tui
+Rules-Requires-Root: no
+
+Package: activitytrack-tui
+Architecture: all
+Depends: ${misc:Depends},
+ python3 (>= 3.11),
+ python3-activitytrack (>= 0.9.4~beta2)
+Description: ActivityTrack in the terminal, full screen
+ ActivityTrack records the work of freelancers and technicians: activities,
+ travels, pauses and to-dos, on the Android app, on a web server of one's
+ own and on the PC.
+ .
+ activitytrack-tui shows the activities running and the Home list of the
+ app in a full-screen terminal interface (curses): keys pause, stop and
+ start activities and to-dos, popups choose the actions and the clients,
+ the sync runs in the background. It is the same application as the
+ desktop tray application and the command line, on the same data.
