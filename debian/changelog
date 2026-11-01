@@ -1,11 +1,12 @@
-activitytrack-tui (0.9.4~beta2-1) unstable; urgency=medium
+activitytrack-tui (0.9.4~beta3-1) unstable; urgency=medium
 
   * A Debian revision in the version, the distribution in it
-    (0.9.4~beta2-1~deb13): the packages are no longer older than the version
-    their dependencies ask for ("(>= 0.9.4~beta2)" against
-    0.9.4~beta2~deb13). Source format 3.0 (quilt), as the revision wants.
+    (0.9.4~beta3-1~deb13), on the library 0.9.4-beta3 that has it too:
+    0.9.4~beta2~deb13 sorted before 0.9.4~beta2, so "python3-activitytrack
+    (>= 0.9.4~beta2)" could not be satisfied. Source format 3.0 (quilt), as
+    the revision wants. Nothing else changes.
 
- -- ActivityTrack <flavio-claude@zipman.it>  Sun, 01 Nov 2026 23:30:00 +0100
+ -- ActivityTrack <flavio-claude@zipman.it>  Mon, 02 Nov 2026 00:57:02 +0100
 
 activitytrack-tui (0.9.4~beta2) unstable; urgency=medium
 
