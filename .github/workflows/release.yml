@@ -36,14 +36,19 @@ jobs:
           # a release is built on a released library
           case "$GITHUB_REF" in refs/tags/v*) test "v$V" = "${GITHUB_REF#refs/tags/}"; grep -q "^v" .github/lib-ref ;; esac
           DV=$(echo "$V" | tr '-' '~')
-          grep -q "^activitytrack-tui ($DV)" debian/changelog
+          # the package: that version and a Debian revision, 1.1.0~beta.1-1
+          PV=$(dpkg-parsechangelog -S Version)
+          test "$(dpkg-parsechangelog -S Source)" = activitytrack-tui && test "${PV%-*}" = "$DV" && test "$PV" != "$DV"
           grep -q "activitytrack-tui $V" packaging/activitytrack-tui.1
-          sed -i "1s/($DV)/($DV~${{ matrix.suffix }})/" debian/changelog
+          # the distribution goes in the revision: 1.1.0~beta.1-1~deb13 still satisfies (>= 1.1.0~beta.1)
+          sed -i "1s/($PV)/($PV~${{ matrix.suffix }})/" debian/changelog
           head -1 debian/changelog
       - name: The library's package (python3-activitytrack at .github/lib-ref)
         run: |
           git clone --depth 1 -b "$(cat .github/lib-ref)" https://github.com/zipclaude/python3-activitytrack /tmp/lib
           cd /tmp/lib
+          # versioned as in its release (1.1.0~beta.1-1~deb13): the Depends are tried on that
+          sed -i "1s/(\([^)]*\))/(\1~${{ matrix.suffix }})/" debian/changelog
           DEBIAN_FRONTEND=noninteractive mk-build-deps -i -r -t "apt-get -y --no-install-recommends" debian/control
           dpkg-buildpackage -b -us -uc
           DEBIAN_FRONTEND=noninteractive apt-get install -y /tmp/python3-activitytrack_*.deb
@@ -144,6 +149,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           V="${GITHUB_REF#refs/tags/v}"
+          R=$(dpkg-parsechangelog -S Version) && R="${R##*-}"   # the Debian revision
           LIB=$(cat .github/lib-ref)
           cd artifacts
           for f in activitytrack-tui_*~*_all.deb; do mv "$f" "$(echo "$f" | tr '~' '-')"; done
@@ -153,7 +159,7 @@ jobs:
             echo
             echo "ActivityTrack in the terminal, full screen: the same application as ActivityTrack Desktop and the command line, on the same data and pairing."
             echo
-            echo "- Debian 13 / 14, Ubuntu 24.04 / 26.04: \`apt install ./python3-activitytrack_${V}-<distro>_all.deb ./activitytrack-tui_${V}-<distro>_all.deb\`; the library [python3-activitytrack]($GITHUB_SERVER_URL/zipclaude/python3-activitytrack/releases/tag/$LIB) is in its own release"
+            echo "- Debian 13 / 14, Ubuntu 24.04 / 26.04: \`apt install ./python3-activitytrack_*-<distro>_all.deb ./activitytrack-tui_${V}-${R}-<distro>_all.deb\`; the library [python3-activitytrack]($GITHUB_SERVER_URL/zipclaude/python3-activitytrack/releases/tag/$LIB) is in its own release"
             echo "- Windows 10 / 11: \`activitytrack-tui-$V-windows.zip\`: \`activitytrack-tui.exe\`, to put in a folder of the PATH (Windows Terminal recommended). Not signed: check it against SHA256SUMS"
             echo "- Elsewhere: \`pip install activitytrack-tui-$V.tar.gz\` after the library"
           } > notes.md
