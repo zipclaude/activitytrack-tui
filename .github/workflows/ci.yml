@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  linux:
+    # the distributions' packages only: the oldest and the newest of the targets
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["debian:trixie", "debian:forky", "ubuntu:24.04"]
+    steps:
+      - name: Distribution packages
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git ca-certificates \
+            python3 python3-cryptography python3-keyring flake8
+      - uses: actions/checkout@v4
+      - name: The library (python3-activitytrack at .github/lib-ref)
+        run: |
+          git clone --depth 1 -b "$(cat .github/lib-ref)" https://github.com/zipclaude/python3-activitytrack lib
+          echo "PYTHONPATH=$PWD/lib" >> "$GITHUB_ENV"
+      - name: Lint
+        run: flake8 activitytrack_tui tests packaging/activitytrack-tui-tui
+      - name: Texts
+        run: python3 scripts/strings.py --check
+      - name: Tests
+        run: python3 -m unittest discover -s tests -t . -v
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Libraries
+        shell: bash
+        run: |
+          python -m pip install "git+https://github.com/zipclaude/python3-activitytrack@$(cat .github/lib-ref)"
+          python -m pip install windows-curses
+      - name: Tests
+        run: python -m unittest discover -s tests -t . -v

@@ -1,0 +1,6 @@
+#!/usr/bin/make -f
+%:
+	dh $@
+
+# the Python files are compiled by Python at the first run, as the user
+override_dh_auto_build override_dh_auto_install override_dh_auto_test:

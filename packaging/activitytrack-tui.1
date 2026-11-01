@@ -1,0 +1,60 @@
+.TH ACTIVITYTRACK-TUI 1 "November 2026" "activitytrack-tui 0.9.4-beta2" "User Commands"
+.SH NAME
+activitytrack-tui \- ActivityTrack in the terminal, full screen
+.SH SYNOPSIS
+.B activitytrack-tui
+.RB [ \-\-data
+.IR folder ]
+.SH DESCRIPTION
+.B activitytrack-tui
+shows the activities running and the Home list of ActivityTrack (to-dos and
+stopped activities) full screen, and works them from the keyboard. It is the
+same application as the desktop tray application and the command line
+.BR activitytrack (1),
+on the same data and pairing: what they do shows within a second. The sync
+runs in the background, every 30 seconds and after each change. To pair the
+PC use the desktop application or
+.BR "activitytrack pair" .
+.SH KEYS
+.TP
+.BR "\(ua \(da" ", " j " " k
+Move the selection.
+.TP
+.B Enter
+The actions of the selected row: the commands of an activity, completing
+it, starting, finishing, postponing or ignoring a to-do.
+.TP
+.B n
+A new activity: description, client (typing filters the list; a new name
+becomes a new client when the policy allows it), work or travel, start time.
+.TP
+.B t
+A new to-do.
+.TP
+.BR p ", " s ", " v ", " u
+Pause or resume, stop, travel, suspend the selected activity (or the one
+running).
+.TP
+.B d
+The selected to-do is done.
+.TP
+.BR f ", " g
+The period and the states of the list.
+.TP
+.B r
+Sync now.
+.TP
+.BR q ", " Esc
+Quit; in a popup, close it.
+.SH OPTIONS
+.TP
+.BI \-\-data " folder"
+Another data folder than the shared one.
+.SH FILES
+.TP
+.I ~/.local/share/activitytrack/
+The data shared with the desktop application and the command line.
+.SH SEE ALSO
+.BR activitytrack (1)
+.SH AUTHOR
+The ActivityTrack contributors, https://github.com/zipclaude/activitytrack-tui

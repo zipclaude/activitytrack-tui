@@ -1,0 +1,9 @@
+#!/bin/sh
+set -e
+
+# bytecode Python may have written next to the code (a run as root)
+if [ -d /usr/share/activitytrack-tui ]; then
+	find /usr/share/activitytrack-tui -name __pycache__ -type d -prune -exec rm -rf {} +
+fi
+
+#DEBHELPER#
