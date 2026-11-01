@@ -25,7 +25,7 @@ jobs:
           git clone --depth 1 -b "$(cat .github/lib-ref)" https://github.com/zipclaude/python3-activitytrack lib
           echo "PYTHONPATH=$PWD/lib" >> "$GITHUB_ENV"
       - name: Lint
-        run: flake8 activitytrack_tui tests packaging/activitytrack-tui-tui
+        run: flake8 activitytrack_tui tests packaging/activitytrack-tui
       - name: Texts
         run: python3 scripts/strings.py --check
       - name: Tests
