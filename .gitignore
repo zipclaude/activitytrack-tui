@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+/.venv/
+/build/
+/dist/
+*.egg-info/
+/debian/.debhelper/
+/debian/activitytrack-tui/
+/debian/debhelper-build-stamp
+/debian/files
+/debian/*.substvars
+/debian/*.log
+*.sqlite3
