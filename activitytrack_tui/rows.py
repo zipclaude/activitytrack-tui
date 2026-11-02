@@ -7,7 +7,7 @@ colour and the actions it allows.
 
 from dataclasses import dataclass, field
 
-from activitytrack import texts
+from activitytrack import formats, texts
 from activitytrack.app import one_line
 from activitytrack.i18n import _
 from activitytrack.texts import hm
@@ -60,7 +60,7 @@ def rows(app, period=-1, show=("TODO", "MISSING"), company=None, tag=None):
             else:
                 missing = obj.get("status") == TO_COMPLETE
                 out.append(Row("stopped", one_line(app.work.label(obj)), texts.state_label(obj),
-                               _("fino alle %s") % extra.strftime("%H:%M"), "red" if missing else "dim", obj))
+                               _("fino alle %s") % formats.time(extra), "red" if missing else "dim", obj))
     return out
 
 
