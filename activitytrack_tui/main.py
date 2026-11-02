@@ -2,6 +2,7 @@
 """activitytrack-tui: the options, the language, then the full screen."""
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
@@ -22,6 +23,19 @@ def _language(folder):
         store.close()
     add_catalogs(Path(__file__).with_name("locale"))
     return set_language(forced or system_language())
+
+
+def _log_errors(folder):
+    """
+    The warnings and errors (the library's, the screen's unexpected ones) in
+    errors.log of the data folder, as the desktop: on stderr they would
+    scribble over the screen.
+    """
+    handler = logging.FileHandler(Path(folder) / "errors.log", encoding="utf-8", delay=True)
+    handler.setFormatter(logging.Formatter("%(asctime)s activitytrack-tui %(name)s: %(message)s"))
+    root = logging.getLogger()
+    root.addHandler(handler)
+    root.setLevel(logging.WARNING)
 
 
 def main(argv=None):
@@ -48,6 +62,7 @@ def main(argv=None):
 
     from .screen import Screen
     app = App(folder, dev=args.dev)
+    _log_errors(app.session.folder)
     try:
         curses.wrapper(lambda win: Screen(win, app).run())
     except KeyboardInterrupt:

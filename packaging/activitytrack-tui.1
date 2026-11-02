@@ -12,7 +12,11 @@ stopped activities) full screen, and works them from the keyboard. It is the
 same application as the desktop tray application and the command line
 .BR activitytrack (1),
 on the same data and pairing: what they do shows within a second. The sync
-runs in the background, every 30 seconds and after each change. To pair the
+runs in the background, every 30 seconds and after each change; after a sync
+that did not go the next automatic one waits longer each time (30 seconds,
+1, 2, then 5 minutes), until a change here or
+.BR r .
+To pair the
 PC use the desktop application or
 .BR "activitytrack pair" .
 .SH KEYS
@@ -54,6 +58,9 @@ Another data folder than the shared one.
 .TP
 .I ~/.local/share/activitytrack/
 The data shared with the desktop application and the command line.
+.TP
+.I ~/.local/share/activitytrack/errors.log
+Unexpected errors and warnings, as the desktop's.
 .SH SEE ALSO
 .BR activitytrack (1)
 .SH AUTHOR

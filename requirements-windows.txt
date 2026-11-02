@@ -1,0 +1,7 @@
+# The libraries bundled in the Windows executable, as the desktop's
+# installer: the versions of Debian 13 where Windows wheels exist.
+# A constraint (-c) when the library is installed, so pip keeps them.
+cryptography==43.0.3
+keyring==25.6.0
+# Windows has no time zone database for zoneinfo
+tzdata==2026.5
