@@ -1,3 +1,12 @@
+activitytrack-tui (0.9.4~beta5-1) unstable; urgency=medium
+
+  * Security review fixes: the sync waits longer after each failure
+    (30 s to 5 min) instead of once a second; menus and popups safe on
+    small terminals and Unicode digits; unexpected errors shown, logged.
+  * On the library 0.9.4-beta5; Windows build with pinned libraries.
+
+ -- ActivityTrack <flavio-claude@zipman.it>  Mon, 02 Nov 2026 18:55:28 +0100
+
 activitytrack-tui (0.9.4~beta4-1) unstable; urgency=medium
 
   * Dates and times in the format chosen on the desktop (library
