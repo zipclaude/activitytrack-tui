@@ -3,6 +3,7 @@
 
 import argparse
 import logging
+import sqlite3
 import sys
 from pathlib import Path
 
@@ -18,9 +19,13 @@ def _language(folder):
     forced = None
     db = Path(folder) / "activitytrack.sqlite3"
     if db.exists():
-        store = Store(db)
-        forced = stored(store).language
-        store.close()
+        try:
+            store = Store(db)
+            forced = stored(store).language
+            store.close()
+        except sqlite3.Error:
+            # unreadable: the language of the system, the error comes at the start below
+            pass
     add_catalogs(Path(__file__).with_name("locale"))
     return set_language(forced or system_language())
 
@@ -61,7 +66,11 @@ def main(argv=None):
     from activitytrack.app import App
 
     from .screen import Screen
-    app = App(folder, dev=args.dev)
+    try:
+        app = App(folder, dev=args.dev)
+    except (sqlite3.Error, OSError) as e:
+        print(_("I dati locali non sono leggibili (%s): %s") % (folder, e), file=sys.stderr)
+        return 1
     _log_errors(app.session.folder)
     try:
         curses.wrapper(lambda win: Screen(win, app).run())

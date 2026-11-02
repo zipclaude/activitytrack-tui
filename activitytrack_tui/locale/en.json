@@ -10,6 +10,7 @@
  "Errore inatteso: %s": "Unexpected error: %s",
  "Fatto": "Done",
  "Finestra troppo piccola.": "Window too small.",
+ "I dati locali non sono leggibili (%s): %s": "The local data cannot be read (%s): %s",
  "Ignora": "Ignore",
  "Il Da fare «%s» è completato": "The to-do «%s» is done",
  "In corso": "Running",
