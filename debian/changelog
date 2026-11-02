@@ -1,3 +1,11 @@
+activitytrack-tui (0.9.4~beta4-1) unstable; urgency=medium
+
+  * Dates and times in the format chosen on the desktop (library
+    0.9.4-beta4), reloaded when another interface changes them.
+  * Resuming without concurrent entries suspends the others (app #132).
+
+ -- ActivityTrack <flavio-claude@zipman.it>  Mon, 02 Nov 2026 15:52:22 +0100
+
 activitytrack-tui (0.9.4~beta3-1) unstable; urgency=medium
 
   * A Debian revision in the version, the distribution in it
