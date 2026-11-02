@@ -103,8 +103,8 @@ jobs:
           python-version: "3.13"
       - name: Libraries and tools
         run: |
-          python -m pip install -r requirements-build-windows.txt
-          python -m pip install "git+https://github.com/zipclaude/python3-activitytrack@$(Get-Content .github/lib-ref)"
+          python -m pip install -r requirements-windows.txt -r requirements-build-windows.txt
+          python -m pip install -c requirements-windows.txt "git+https://github.com/zipclaude/python3-activitytrack@$(Get-Content .github/lib-ref)"
           # installed, so that PyInstaller finds its data files (the translations)
           python -m pip install --no-deps .
       - name: Version

@@ -2,6 +2,8 @@
 """activitytrack-tui: the options, the language, then the full screen."""
 
 import argparse
+import logging
+import sqlite3
 import sys
 from pathlib import Path
 
@@ -17,11 +19,28 @@ def _language(folder):
     forced = None
     db = Path(folder) / "activitytrack.sqlite3"
     if db.exists():
-        store = Store(db)
-        forced = stored(store).language
-        store.close()
+        try:
+            store = Store(db)
+            forced = stored(store).language
+            store.close()
+        except sqlite3.Error:
+            # unreadable: the language of the system, the error comes at the start below
+            pass
     add_catalogs(Path(__file__).with_name("locale"))
     return set_language(forced or system_language())
+
+
+def _log_errors(folder):
+    """
+    The warnings and errors (the library's, the screen's unexpected ones) in
+    errors.log of the data folder, as the desktop: on stderr they would
+    scribble over the screen.
+    """
+    handler = logging.FileHandler(Path(folder) / "errors.log", encoding="utf-8", delay=True)
+    handler.setFormatter(logging.Formatter("%(asctime)s activitytrack-tui %(name)s: %(message)s"))
+    root = logging.getLogger()
+    root.addHandler(handler)
+    root.setLevel(logging.WARNING)
 
 
 def main(argv=None):
@@ -47,7 +66,12 @@ def main(argv=None):
     from activitytrack.app import App
 
     from .screen import Screen
-    app = App(folder, dev=args.dev)
+    try:
+        app = App(folder, dev=args.dev)
+    except (sqlite3.Error, OSError) as e:
+        print(_("I dati locali non sono leggibili (%s): %s") % (folder, e), file=sys.stderr)
+        return 1
+    _log_errors(app.session.folder)
     try:
         curses.wrapper(lambda win: Screen(win, app).run())
     except KeyboardInterrupt:

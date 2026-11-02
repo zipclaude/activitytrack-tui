@@ -4,10 +4,13 @@ The full screen (curses): a header with the sync's state, the rows of
 rows.py with a selection, a footer with the keys; popups for the actions,
 the choices and the texts to type. The sync runs in a thread: every 30 s,
 and right after each change; what another interface writes (the desktop,
-the command line) shows within a second.
+the command line) shows within a second. After a sync that did not go,
+the next automatic one waits longer each time (30 s … 5 min); a change
+here or "r" tries again at once.
 """
 
 import curses
+import logging
 import threading
 import time
 
@@ -20,6 +23,13 @@ from . import rows as R
 
 TICK_MS = 1000
 SYNC_EVERY_S = 30
+# the waits after a sync that did not go, one more at each failure
+BACKOFF_S = (30, 60, 120, 300)
+# a change seen this soon after a sync is the sync's own (last_sync, the pull)
+OWN_WRITE_S = 2
+# below it the screen only says it is too small, and no popup opens
+MIN_H, MIN_W = 6, 30
+log = logging.getLogger(__name__)
 _COLOURS = {"green": curses.COLOR_GREEN, "yellow": curses.COLOR_YELLOW, "blue": curses.COLOR_BLUE,
             "magenta": curses.COLOR_MAGENTA, "red": curses.COLOR_RED, "cyan": curses.COLOR_CYAN}
 
@@ -33,7 +43,12 @@ class Screen:
         self.sync_state, self.sync_detail = "idle", ""
         self._sync_lock = threading.Lock()
         self._sync_wanted = threading.Event()
-        self._last_sync = 0.0
+        self._wanted_lock = threading.Lock()
+        self._reset = False
+        # the failures in a row, and when the next automatic sync may start
+        self._failures, self._next_sync = 0, 0.0
+        self._synced_at = float("-inf")
+        self.clock = time.monotonic
         self._version = None
         self._stop = False
         self.pairs = {}
@@ -84,6 +99,10 @@ class Screen:
                 self.key(key)
             except (InputError, WorkError) as e:
                 self.say(describe_error(e), "red")
+            except Exception as e:
+                # a bug, or the data locked for too long: said and logged, the screen stays
+                log.exception("unexpected error")
+                self.say(_("Errore inatteso: %s") % f"{type(e).__name__}: {e}", "red")
 
     def _tick(self):
         """Every second: the clock moves, another interface may have written."""
@@ -91,8 +110,10 @@ class Screen:
         if version != self._version:
             self._version = version
             self.app.refresh_policy()
-            if self.app.store.has_pending():
-                self.want_sync()
+            own = self._sync_lock.locked() or self.clock() - self._synced_at < OWN_WRITE_S
+            if self.app.store.has_pending() and not own:
+                # another interface's change: as the periodic sync, it waits after a failure
+                self.want_sync(reset=False)
         self.refresh()
 
     def refresh(self):
@@ -111,24 +132,41 @@ class Screen:
 
     # ---- the sync, in its own thread ----
 
-    def want_sync(self):
-        self._sync_wanted.set()
+    def want_sync(self, reset=True):
+        """A sync now; [reset] (a change here, "r") also ends the wait after a failure."""
+        with self._wanted_lock:
+            self._reset = self._reset or reset
+            self._sync_wanted.set()
 
     def _sync_loop(self):
         while not self._stop:
-            asked = self._sync_wanted.wait(1.0)
-            if not asked and time.monotonic() - self._last_sync < SYNC_EVERY_S:
-                continue
+            self._sync_once(self._sync_wanted.wait(1.0))
+
+    def _sync_once(self, asked):
+        """One turn of the sync thread: a sync when asked or due, unless waiting after a failure."""
+        with self._wanted_lock:
+            reset, self._reset = self._reset, False
             self._sync_wanted.clear()
-            if not self.app.paired:
-                continue
-            with self._sync_lock:
-                try:
-                    self.sync_state, self.sync_detail = self.app.runner.run(full=asked)
-                finally:
-                    # this thread's connection
-                    self.app.store.close()
-                self._last_sync = time.monotonic()
+        if reset:
+            self._failures = 0
+        due = self.clock() >= self._next_sync
+        if not (reset or due or (asked and not self._failures)):
+            return
+        if not self.app.paired:
+            return
+        with self._sync_lock:
+            try:
+                self.sync_state, self.sync_detail = self.app.runner.run(full=asked)
+            finally:
+                # this thread's connection
+                self.app.store.close()
+            if self.sync_state in ("ok", "idle"):
+                self._failures, wait = 0, SYNC_EVERY_S
+            else:
+                wait = BACKOFF_S[min(self._failures, len(BACKOFF_S) - 1)]
+                self._failures += 1
+            self._synced_at = self.clock()
+            self._next_sync = self._synced_at + wait
 
     # ---- drawing ----
 
@@ -136,7 +174,7 @@ class Screen:
         win = self.win
         win.erase()
         h, w = win.getmaxyx()
-        if h < 6 or w < 30:
+        if h < MIN_H or w < MIN_W:
             self._put(0, 0, _("Finestra troppo piccola."), 0, w)
             win.refresh()
             return
@@ -361,7 +399,11 @@ class Screen:
     # ---- popups ----
 
     def _box(self, height, width, title):
+        """The popup's window; None when the terminal is too small for one (the popup is cancelled)."""
         h, w = self.win.getmaxyx()
+        if h < MIN_H or w < MIN_W:
+            self.say(_("Finestra troppo piccola."), "red")
+            return None, 0, 0
         height, width = min(height, h - 2), min(width, w - 4)
         box = curses.newwin(height, width, max(1, (h - height) // 2), max(2, (w - width) // 2))
         box.keypad(True)
@@ -376,12 +418,17 @@ class Screen:
         """The index chosen, or None (Esc, q)."""
         if not options:
             return None
-        sel = 0
+        sel = top = 0
         while True:
             box, height, width = self._box(len(options) + 2, max(len(title), *(len(o) for o in options)) + 8, title)
-            for i, o in enumerate(options[: height - 2]):
+            if box is None:
+                return None
+            # a long list scrolls with the selection
+            top = _scrolled(top, sel, height - 2)
+            for n, o in enumerate(options[top:top + height - 2]):
+                i = top + n
                 try:
-                    box.addnstr(1 + i, 2, f"{i + 1:>2} {o}", width - 4, curses.A_REVERSE if i == sel else 0)
+                    box.addnstr(1 + n, 2, f"{i + 1:>2} {o}", width - 4, curses.A_REVERSE if i == sel else 0)
                 except curses.error:
                     pass
             box.refresh()
@@ -394,19 +441,28 @@ class Screen:
                 sel = min(sel + 1, len(options) - 1)
             elif key in (curses.KEY_UP, "k"):
                 sel = max(sel - 1, 0)
-            elif isinstance(key, str) and key.isdigit() and 1 <= int(key) <= len(options):
+            # ASCII digits only: "²" is a digit to isdigit() but not to int()
+            elif isinstance(key, str) and key.isascii() and key.isdecimal() and 1 <= int(key) <= len(options):
                 return int(key) - 1
 
     def prompt(self, label, default=""):
-        """A line typed (Enter); None with Esc."""
+        """
+        A line typed (Enter); None with Esc. The line breaks of a text written
+        elsewhere (the desktop) show as ⏎ and stay in the text.
+        """
         text = list(default)
         box, _height, width = self._box(3, max(50, len(label) + 6), label)
+        if box is None:
+            return None
         curses.curs_set(1)
         try:
             while True:
-                shown = "".join(text)[-(width - 5):]
-                box.addnstr(1, 2, shown.ljust(width - 4), width - 4)
-                box.move(1, 2 + len(shown))
+                shown = "".join(text).replace("\n", "⏎")[-(width - 5):]
+                try:
+                    box.addnstr(1, 2, shown.ljust(width - 4), width - 4)
+                    box.move(1, 2 + len(shown))
+                except curses.error:
+                    pass
                 box.refresh()
                 key = box.get_wch()
                 if key in ("\n", "\r", curses.KEY_ENTER):
@@ -426,8 +482,11 @@ class Screen:
         clients = self.app.work.masters("client")
         typed, sel = "", 0
         title = texts.FIELDS["client"]
+        top = 0
         while True:
             found = [c for c in clients if typed.casefold() in (c.get("name") or "").casefold()]
+            # the client of that very name first, also when it would be beyond the twelve shown
+            found.sort(key=lambda c: (c.get("name") or "").casefold() != typed.casefold())
             options = [c.get("name") or "" for c in found[:12]]
             if typed and typed.casefold() not in [o.casefold() for o in options]:
                 options.append(_("Nuovo: %s") % typed)
@@ -435,10 +494,16 @@ class Screen:
                 options.insert(0, _("(nessuno)"))
             sel = min(sel, max(0, len(options) - 1))
             box, height, width = self._box(len(options) + 3, 60, title)
-            box.addnstr(1, 2, "> " + typed, width - 4, curses.A_BOLD)
-            for i, o in enumerate(options[: height - 3]):
+            if box is None:
+                return None
+            top = _scrolled(top, sel, height - 3)
+            try:
+                box.addnstr(1, 2, "> " + typed, width - 4, curses.A_BOLD)
+            except curses.error:
+                pass
+            for n, o in enumerate(options[top:top + height - 3]):
                 try:
-                    box.addnstr(2 + i, 2, o, width - 4, curses.A_REVERSE if i == sel else 0)
+                    box.addnstr(2 + n, 2, o, width - 4, curses.A_REVERSE if top + n == sel else 0)
                 except curses.error:
                     pass
             box.refresh()
@@ -462,3 +527,13 @@ class Screen:
                 typed, sel = typed[:-1], 0
             elif isinstance(key, str) and key.isprintable():
                 typed, sel = typed + key, 0
+
+
+def _scrolled(top, sel, room):
+    """The first option shown of a list in [room] lines, so that [sel] is in sight."""
+    room = max(1, room)
+    if sel < top:
+        return sel
+    if sel >= top + room:
+        return sel - room + 1
+    return top
