@@ -29,7 +29,7 @@ jobs:
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates git \
             build-essential debhelper dpkg-dev devscripts equivs man-db
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Version
         run: |
           V=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' activitytrack_tui/__init__.py)
@@ -71,7 +71,7 @@ jobs:
         run: |
           apt-get purge -y activitytrack-tui
           test ! -e /usr/share/activitytrack-tui && test ! -e /usr/bin/activitytrack-tui
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: deb-${{ matrix.suffix }}
           path: dist/*.deb
@@ -79,13 +79,13 @@ jobs:
   tarball:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Tarball
         run: |
           V=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' activitytrack_tui/__init__.py)
           mkdir dist
           git archive --prefix="activitytrack-tui-$V/" -o "dist/activitytrack-tui-$V.tar.gz" HEAD
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: tarball
           path: dist/*.tar.gz
@@ -97,8 +97,8 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.13"
       - name: Libraries and tools
@@ -129,7 +129,7 @@ jobs:
           New-Item -ItemType Directory -Path pack | Out-Null
           Copy-Item dist/activitytrack-tui.exe, LICENSE, README.md pack/
           Compress-Archive -Path pack/* -DestinationPath "dist/activitytrack-tui-$env:AT_VERSION-windows.zip"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows
           path: dist/activitytrack-tui-*-windows.zip
@@ -141,8 +141,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with: { path: artifacts, merge-multiple: true }
       - name: Publish
         env:
