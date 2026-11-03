@@ -1,3 +1,11 @@
+activitytrack-tui (0.9.4~beta5-1-1) unstable; urgency=medium
+
+  * On the library 0.9.4-beta5-1: the sync thread's close() after each run
+    no longer closes the screen's connection (beta5 regression, desktop
+    issue #24); the Windows executable bundles the fixed library.
+
+ -- ActivityTrack <flavio-claude@zipman.it>  Tue, 03 Nov 2026 13:33:49 +0100
+
 activitytrack-tui (0.9.4~beta5-1) unstable; urgency=medium
 
   * Security review fixes: the sync waits longer after each failure

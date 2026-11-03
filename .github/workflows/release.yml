@@ -35,7 +35,7 @@ jobs:
           V=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' activitytrack_tui/__init__.py)
           # a release is built on a released library
           case "$GITHUB_REF" in refs/tags/v*) test "v$V" = "${GITHUB_REF#refs/tags/}"; grep -q "^v" .github/lib-ref ;; esac
-          DV=$(echo "$V" | tr '-' '~')
+          DV=$(echo "$V" | sed 's/-/~/')   # only the first: 0.9.4-beta5-1 is 0.9.4~beta5-1
           # the package: that version and a Debian revision, 1.1.0~beta.1-1
           PV=$(dpkg-parsechangelog -S Version)
           test "$(dpkg-parsechangelog -S Source)" = activitytrack-tui && test "${PV%-*}" = "$DV" && test "$PV" != "$DV"
