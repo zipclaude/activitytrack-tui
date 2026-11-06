@@ -1,3 +1,10 @@
+activitytrack-tui (0.9.6-1) unstable; urgency=medium
+
+  * Release 0.9.6, on the library 0.9.6, in step with ActivityTrack 0.9.6 (the
+    app, ActivityTrack Web and the other interfaces). No change since 0.9.5.
+
+ -- ActivityTrack <flavio-claude@zipman.it>  Fri, 06 Nov 2026 02:40:00 +0000
+
 activitytrack-tui (0.9.5-1) unstable; urgency=medium
 
   * Release 0.9.5, on the library 0.9.5, in step with ActivityTrack 0.9.5 (the
