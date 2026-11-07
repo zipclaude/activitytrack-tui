@@ -1,3 +1,11 @@
+activitytrack-tui (0.9.8-1) unstable; urgency=medium
+
+  * Release 0.9.8, on the library 0.9.8, in step with ActivityTrack 0.9.8: the
+    first release from GitLab. CI and release move to .gitlab-ci.yml, the
+    addresses point to gitlab.com/infraconsulting.
+
+ -- ActivityTrack <flavio-claude@zipman.it>  Sat, 07 Nov 2026 16:30:00 +0000
+
 activitytrack-tui (0.9.6-1) unstable; urgency=medium
 
   * Release 0.9.6, on the library 0.9.6, in step with ActivityTrack 0.9.6 (the

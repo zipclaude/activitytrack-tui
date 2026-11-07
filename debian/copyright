@@ -1,6 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: activitytrack-tui
-Source: https://github.com/zipclaude/activitytrack-tui
+Source: https://gitlab.com/infraconsulting/activitytrack-tui
 
 Files: *
 Copyright: 2026 ActivityTrack contributors

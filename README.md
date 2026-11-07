@@ -1,14 +1,14 @@
 # activitytrack-tui
 
-[ActivityTrack](https://github.com/zipclaude/activitytrack) in the terminal, full screen: the
+[ActivityTrack](https://gitlab.com/infraconsulting/activitytrack) in the terminal, full screen: the
 activities running and the Home list of the app (to-dos and stopped activities), worked from the
-keyboard; the sync with [ActivityTrack Web](https://github.com/zipclaude/activitytrack-web) runs in
+keyboard; the sync with [ActivityTrack Web](https://gitlab.com/infraconsulting/activitytrack-web) runs in
 the background.
 
-It is the same application as [ActivityTrack Desktop](https://github.com/zipclaude/activitytrack-desktop)
-and the command line [activitytrack-cli](https://github.com/zipclaude/activitytrack-cli): they share the
+It is the same application as [ActivityTrack Desktop](https://gitlab.com/infraconsulting/activitytrack-desktop)
+and the command line [activitytrack-cli](https://gitlab.com/infraconsulting/activitytrack-cli): they share the
 data folder, the pairing and the token through the library
-[python3-activitytrack](https://github.com/zipclaude/python3-activitytrack). To pair the PC use the desktop
+[python3-activitytrack](https://gitlab.com/infraconsulting/python3-activitytrack). To pair the PC use the desktop
 application or `activitytrack pair`.
 
 | Key | |
@@ -26,7 +26,7 @@ application or `activitytrack pair`.
 
 ## Install
 
-From the [releases](https://github.com/zipclaude/activitytrack-tui/releases):
+From the [releases](https://gitlab.com/infraconsulting/activitytrack-tui/-/releases):
 
 - **Debian 13 / 14, Ubuntu 24.04 / 26.04**: `sudo apt install ./python3-activitytrack_<version>-1-<distro>_all.deb ./activitytrack-tui_<version>-1-<distro>_all.deb`
   (the library from its own release);
@@ -37,7 +37,7 @@ From the [releases](https://github.com/zipclaude/activitytrack-tui/releases):
 
 ```sh
 apt install python3-cryptography python3-keyring flake8
-git clone https://github.com/zipclaude/python3-activitytrack ../python3-activitytrack
+git clone https://gitlab.com/infraconsulting/python3-activitytrack ../python3-activitytrack
 export PYTHONPATH=$PWD/../python3-activitytrack
 python3 -m activitytrack_tui
 python3 -m unittest discover -s tests -t .
