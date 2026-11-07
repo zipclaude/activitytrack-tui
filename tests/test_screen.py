@@ -76,6 +76,10 @@ class ScreenTest(unittest.TestCase):
 
     def tearDown(self):
         self.curs.stop()
+        # the sync thread of a screen that ran: it may still hold the database, which Windows will not delete
+        self.screen._stop = True
+        if self.screen._thread:
+            self.screen._thread.join(10)
         self.app.store.close()
         self.dir.cleanup()
 

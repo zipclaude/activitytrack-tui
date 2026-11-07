@@ -51,6 +51,7 @@ class Screen:
         self.clock = time.monotonic
         self._version = None
         self._stop = False
+        self._thread = None
         self.pairs = {}
 
     # ---- set-up and the loop ----
@@ -79,7 +80,8 @@ class Screen:
         self._colours()
         self.win.keypad(True)
         self.win.timeout(TICK_MS)
-        threading.Thread(target=self._sync_loop, daemon=True).start()
+        self._thread = threading.Thread(target=self._sync_loop, daemon=True)
+        self._thread.start()
         self.want_sync()
         self.refresh()
         while True:
