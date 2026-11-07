@@ -11,12 +11,15 @@ here or "r" tries again at once.
 
 import curses
 import logging
+import textwrap
 import threading
 import time
 
-from activitytrack import texts
+import activitytrack
+from activitytrack import texts, updates
 from activitytrack.app import InputError, describe_error, parse_when
 from activitytrack.i18n import _
+from activitytrack.manifest import ManifestError
 from activitytrack.work import ACTIVE, PAUSE, STOP, TO_COMPLETE, TRAVEL, WORK, StartRequest, WorkError
 
 from . import rows as R
@@ -53,6 +56,8 @@ class Screen:
         self._stop = False
         self._thread = None
         self.pairs = {}
+        # what the last sync brought of a newer version (updates.Status), for the header
+        self.news = None
 
     # ---- set-up and the loop ----
 
@@ -83,6 +88,7 @@ class Screen:
         self._thread = threading.Thread(target=self._sync_loop, daemon=True)
         self._thread.start()
         self.want_sync()
+        self.news = self._news()
         self.refresh()
         while True:
             self.draw()
@@ -129,6 +135,15 @@ class Screen:
         else:
             self.sel = next((i for i, r in enumerate(self.rows) if r.selectable), 0)
 
+    def _news(self):
+        """The release the last sync announced, or None."""
+        try:
+            status = self.app.updates.status()
+        except Exception:
+            log.exception("update status")
+            return None
+        return status.release if status.state == updates.AVAILABLE else None
+
     def say(self, text, colour=""):
         self.message, self.message_colour = text, colour
 
@@ -159,6 +174,8 @@ class Screen:
         with self._sync_lock:
             try:
                 self.sync_state, self.sync_detail = self.app.runner.run(full=asked)
+                # the server's announcement came with it: checked here, in the thread that has the data
+                self.news = self._news()
             finally:
                 # this thread's connection
                 self.app.store.close()
@@ -189,6 +206,10 @@ class Screen:
                   curses.A_REVERSE | (self.pairs.get("red", 0) if attention else 0), w)
         filters = f" {R.period_label(self.period)} · {_('Stato: %s') % R.show_label(self.show)}"
         self._put(1, 0, filters, self.attr("cyan"), w)
+        news = self.news
+        if news is not None:
+            note = _("Versione %s disponibile: a") % news.version
+            self._put(1, max(len(filters) + 2, w - len(note) - 1), note, self.attr("yellow", bold=True), w)
         body_top, body_h = 2, h - 4
         lines = []
         for i, r in enumerate(self.rows):
@@ -207,7 +228,7 @@ class Screen:
         if self.message:
             self._put(h - 2, 1, self.message, self.attr(self.message_colour, bold=True), w)
         keys = _("⏎ azioni  n nuova attività  t nuovo Da fare  p pausa  s stop  v viaggio  d fatto  f periodo  "
-                 "g stato  r sincronizza  q esci")
+                 "g stato  r sincronizza  a aggiornamenti  q esci")
         self._put(h - 1, 0, (" " + keys).ljust(w), curses.A_REVERSE, w)
         win.refresh()
 
@@ -261,6 +282,8 @@ class Screen:
         elif key == "r":
             self.want_sync()
             self.say(_("Sincronizzazione…"))
+        elif key == "a":
+            self._updates()
         elif key in R.SHORTCUTS:
             self._shortcut(R.SHORTCUTS[key])
         elif key == "d":
@@ -339,6 +362,29 @@ class Screen:
         elif kind == "todo_reopen":
             app.todos.reopen(rec["uid"])
         self.changed()
+
+    def _updates(self):
+        """Asks the server for its manifest (the key of the pairing checks it) and offers the download."""
+        self.say(_("Controllo…"))
+        self.draw()
+        status = self.app.updates.check()
+        self.news = status.release if status.state == updates.AVAILABLE else None
+        text = texts.update_state(status, activitytrack.client()["version"])
+        # the box's width: the text in lines, then the choices
+        lines = textwrap.wrap(text, 56) or [text]
+        options = lines + ([_("Scarica")] if status.downloadable else [])
+        i = self.menu(_("Aggiornamenti"), options)
+        self.say("")
+        if i is None or i < len(lines):
+            return
+        self.say(_("Scarico…"))
+        self.draw()
+        try:
+            path = self.app.updates.download(status.release)
+        except ManifestError as e:
+            self.say(_("Scaricamento non riuscito: %s") % e, "red")
+        else:
+            self.say(_("Scaricato e controllato: %s") % path, "green")
 
     def _complete(self, entry):
         """The stop sheet: description, client, the to-do done."""

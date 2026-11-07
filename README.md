@@ -20,6 +20,7 @@ application or `activitytrack pair`.
 | d | to-do done |
 | f, g | period, states of the list |
 | r | sync now |
+| a | updates: ask the paired server for a newer version, download it |
 | q, Esc | quit, close a popup |
 
 `man activitytrack-tui` has the details.
