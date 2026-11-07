@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from unittest import mock
 
+import activitytrack
 from activitytrack.app import App
 from activitytrack.pairing import Account
 from activitytrack_tui import screen as S
@@ -94,7 +95,7 @@ class ScreenTest(unittest.TestCase):
 
     # ---- updates from the paired server ----
 
-    def announced(self, key="signer", component="tui-deb"):
+    def announced(self, key="signer", component="tui-tar"):
         """The app paired, the store holding a manifest of 9.9.9 signed by the pinned key."""
         import datetime
         from cryptography import x509
@@ -126,9 +127,11 @@ class ScreenTest(unittest.TestCase):
                 return 200, body
         stack = contextlib.ExitStack()
         self.addCleanup(stack.close)
+        activitytrack.set_client("ActivityTrackTui", "0.9.8")
+        self.addCleanup(activitytrack.set_client, "ActivityTrack", activitytrack.__version__)
         stack.enter_context(mock.patch("activitytrack.session.Session.http", return_value=Down()))
         stack.enter_context(mock.patch("activitytrack.manifest.from_package_manager", return_value=package_manager))
-        stack.enter_context(mock.patch("activitytrack.updates.component", return_value="tui-deb"))
+        stack.enter_context(mock.patch("activitytrack.updates.distro", return_value="deb13"))
 
     def test_updates_say_why_when_nothing_is_offered(self):
         self.app.runner.refresh_update = lambda: ""
@@ -151,17 +154,17 @@ class ScreenTest(unittest.TestCase):
         self.assertTrue(any("Scarica" in text for text in shown))
         self.assertEqual(self.screen.news.version, "9.9.9")
         self.assertIn("Scaricato e controllato", self.screen.message)
-        self.assertTrue(next((self.app.session.folder / "updates").glob("*.deb")).read_bytes() == b"the package")
+        self.assertTrue(next((self.app.session.folder / "updates").glob("*.tar.gz")).read_bytes() == b"the package")
         # another file than the manifest's: refused, nothing left
         self.patched(body=b"another")
-        (next((self.app.session.folder / "updates").glob("*.deb"))).unlink()
+        (next((self.app.session.folder / "updates").glob("*.tar.gz"))).unlink()
         self.popup("2")
         self.screen.key("a")
         self.assertIn("Scaricamento non riuscito", self.screen.message)
-        self.assertEqual([], list((self.app.session.folder / "updates").glob("*.deb")))
+        self.assertEqual([], list((self.app.session.folder / "updates").glob("*.tar.gz")))
 
     def test_a_package_manager_installation_is_not_offered_the_download(self):
-        self.announced()
+        self.announced(component="tui-deb13")
         self.patched(package_manager=True)
         box = self.popup("\x1b")
         self.screen.key("a")
