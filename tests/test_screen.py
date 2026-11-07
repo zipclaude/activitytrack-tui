@@ -123,8 +123,17 @@ class ScreenTest(unittest.TestCase):
 
     def patched(self, package_manager=False, body=b"the package"):
         class Down:
-            def exchange(self, *a, **kw):
-                return 200, body
+            """The server's files, streamed."""
+            status = 200
+
+            @contextlib.contextmanager
+            def stream(self, path, headers=None):
+                self.rest = body
+                yield self
+
+            def read(self, n=-1):
+                piece, self.rest = self.rest[:n], self.rest[n:]
+                return piece
         stack = contextlib.ExitStack()
         self.addCleanup(stack.close)
         activitytrack.set_client("ActivityTrackTui", "0.9.8")
