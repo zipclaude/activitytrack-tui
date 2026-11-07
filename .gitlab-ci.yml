@@ -4,12 +4,12 @@
 # publishes the release. "Run pipeline" by hand does everything but publishing.
 # The library is python3-activitytrack at the tag in .gitlab/lib-ref.
 
+# Shared-runner minutes are paid: no pipeline starts on its own (not on pushes,
+# merge requests or tags). Start one by hand ("Run pipeline" on a branch or tag,
+# or the pipelines API) before a release. Day-to-day tests run locally.
 workflow:
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-    - if: $CI_COMMIT_TAG =~ /^v[0-9]/
-    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"
 
 stages: [test, package, release]
 
