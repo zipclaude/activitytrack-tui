@@ -141,6 +141,8 @@ class ScreenTest(unittest.TestCase):
         stack.enter_context(mock.patch("activitytrack.session.Session.http", return_value=Down()))
         stack.enter_context(mock.patch("activitytrack.manifest.from_package_manager", return_value=package_manager))
         stack.enter_context(mock.patch("activitytrack.updates.distro", return_value="deb13"))
+        # a Linux installation whatever the system the tests run on (on Windows the package is tui-windows)
+        stack.enter_context(mock.patch("sys.platform", "linux"))
 
     def test_updates_say_why_when_nothing_is_offered(self):
         self.app.runner.refresh_update = lambda: ""
