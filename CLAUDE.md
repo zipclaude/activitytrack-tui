@@ -14,7 +14,8 @@ The whole workflow is in
 - Stable release: merge request `next` → `main`, merged fast-forward only; tag `vX.Y.Z` on
   `main`; then merge `main` into `next`.
 - Beta: tag `vX.Y.Z-beta-N` on `next` (X.Y.Z is the *next* version); Debian version
-  `X.Y.Z~betaN-1`. Needs the unit tests and the local Wine jobs, not the paid Windows pipeline.
+  `X.Y.Z~beta-N-1` (the CI turns the tag's first hyphen into a tilde,
+  the changelog adds the revision). Needs the unit tests and the local Wine jobs, not the paid Windows pipeline.
 - Security patch: `security/<name>` cut from `main`, version `X.Y.Z.1`, released at once with
   the security report, then merged into `next`.
 - Test locally first. Pipelines on GitLab's shared runners start only when the owner says so;
@@ -32,6 +33,8 @@ The whole workflow is in
 ## 2. Tests
 
 ```sh
+flake8 activitytrack_tui tests packaging/activitytrack-tui
+python3 scripts/strings.py --check
 python3 -m unittest discover -s tests -t .
 ```
 The job `windows` of `.gitlab-ci.yml` runs the same tests on Windows (paid shared runner, on command).
