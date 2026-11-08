@@ -55,7 +55,7 @@ windows:
     - python -m pip install -c requirements-windows.txt "git+$env:LIB_URL@$lib"
     - python -m unittest discover -s tests -t . -v
 
-# the packages are tried on a tag, by hand, and in merge requests that touch the packaging
+# the Linux packages are built on a tag and in a pipeline started by hand or by the API
 .packaging:
   rules:
     - if: $CI_COMMIT_TAG =~ /^v[0-9]/
@@ -130,7 +130,6 @@ tarball:
     expire_in: 30 days
 
 windows-exe:
-  extends: .packaging
   stage: package
   # one executable for the console, with windows-curses; not signed (no costs: desktop's D10)
   tags: [saas-windows-medium-amd64]
