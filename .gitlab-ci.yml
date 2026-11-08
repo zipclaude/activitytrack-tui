@@ -20,7 +20,7 @@ default:
 
 variables:
   DEBIAN_FRONTEND: noninteractive
-  LIB_URL: https://gitlab.com/infraconsulting/python3-activitytrack
+  LIB_URL: https://gitlab.com/activitytrack/python3-activitytrack
 
 linux:
   stage: test

@@ -4,9 +4,9 @@ Priority: optional
 Maintainer: ActivityTrack <flavio-claude@zipman.it>
 Build-Depends: debhelper-compat (= 13)
 Standards-Version: 4.7.0
-Homepage: https://gitlab.com/infraconsulting/activitytrack-tui
-Vcs-Git: https://gitlab.com/infraconsulting/activitytrack-tui.git
-Vcs-Browser: https://gitlab.com/infraconsulting/activitytrack-tui
+Homepage: https://gitlab.com/activitytrack/activitytrack-tui
+Vcs-Git: https://gitlab.com/activitytrack/activitytrack-tui.git
+Vcs-Browser: https://gitlab.com/activitytrack/activitytrack-tui
 Rules-Requires-Root: no
 
 Package: activitytrack-tui
