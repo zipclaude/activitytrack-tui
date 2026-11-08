@@ -45,9 +45,10 @@ linux:
 windows:
   stage: test
   tags: [saas-windows-medium-amd64]
-  # Windows only at the release (a version tag): the shared Windows runners are paid
+  # Windows only at a stable release (vX.Y.Z[.W]): the shared Windows runners are paid. A beta
+  # (vX.Y.Z-beta-N) is tried under Wine, on the local runner (windows-wine, windows-wine-exe)
   rules:
-    - if: $CI_COMMIT_TAG =~ /^v[0-9]/
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]+(\.[0-9]+)*$/
   script:
     - choco install python313 --no-progress -y
     - $env:Path = "C:\Python313;C:\Python313\Scripts;" + $env:Path
@@ -57,6 +58,23 @@ windows:
     - $lib = (Get-Content .gitlab/lib-ref).Trim()
     - python -m pip install -c requirements-windows.txt "git+$env:LIB_URL@$lib"
     - python -m unittest discover -s tests -t . -v
+
+# The Windows code paths under Wine on the local runner (free): the tests of the Windows job, and,
+# for a beta or a pipeline started by hand, the executable. Wine cannot start a PyInstaller bundle
+# (python313.dll does not initialise), so the executable is built but not tried: the beta's notes say so.
+windows-wine:
+  stage: test
+  image: tobix/pywine:3.13
+  variables:
+    WINEDEBUG: "-all"
+  before_script:
+    - mkdir -p /tmp/xdg && chmod 700 /tmp/xdg && export XDG_RUNTIME_DIR=/tmp/xdg
+  script:
+    - LIB="$LIB_URL/-/archive/$(cat .gitlab/lib-ref)/python3-activitytrack.tar.gz"
+    - wine python -m pip install -q --no-warn-script-location -r requirements-windows.txt
+    - wine python -m pip install -q --no-warn-script-location windows-curses
+    - wine python -m pip install -q --no-warn-script-location -c requirements-windows.txt "$LIB"
+    - wine python -m unittest discover -s tests -t . -v
 
 # the Linux packages are built on a tag and in a pipeline started by hand or by the API
 .packaging:
@@ -136,9 +154,10 @@ windows-exe:
   stage: package
   # one executable for the console, with windows-curses; not signed (no costs: desktop's D10)
   tags: [saas-windows-medium-amd64]
-  # Windows only at the release (a version tag): the shared Windows runners are paid
+  # Windows only at a stable release (vX.Y.Z[.W]): the shared Windows runners are paid. A beta
+  # (vX.Y.Z-beta-N) is tried under Wine, on the local runner (windows-wine, windows-wine-exe)
   rules:
-    - if: $CI_COMMIT_TAG =~ /^v[0-9]/
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]+(\.[0-9]+)*$/
   timeout: 30m
   script:
     - choco install python313 --no-progress -y
@@ -167,6 +186,40 @@ windows-exe:
     paths: ["dist/activitytrack-tui-*-windows.zip"]
     expire_in: 30 days
 
+windows-wine-exe:
+  stage: package
+  image: tobix/pywine:3.13
+  variables:
+    WINEDEBUG: "-all"
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]+(\.[0-9]+)*-/
+    - if: $CI_COMMIT_BRANCH && ($CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api")
+  before_script:
+    - mkdir -p /tmp/xdg && chmod 700 /tmp/xdg && export XDG_RUNTIME_DIR=/tmp/xdg
+  script:
+    - V=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' activitytrack_tui/__init__.py)
+    - if [ -n "$CI_COMMIT_TAG" ]; then test "v$V" = "$CI_COMMIT_TAG"; fi
+    - LIB="$LIB_URL/-/archive/$(cat .gitlab/lib-ref)/python3-activitytrack.tar.gz"
+    - wine python -m pip install -q --no-warn-script-location -r requirements-windows.txt -r requirements-build-windows.txt
+    - wine python -m pip install -q --no-warn-script-location windows-curses
+    - wine python -m pip install -q --no-warn-script-location -c requirements-windows.txt "$LIB"
+    # installed, so that PyInstaller finds its data files (the translations)
+    - wine python -m pip install -q --no-warn-script-location --no-deps .
+    - wine python -m unittest discover -s tests -t .
+    - |
+      wine python -m PyInstaller --noconfirm --clean --onefile --console --name activitytrack-tui --paths . \
+        --collect-submodules keyring.backends --collect-data tzdata \
+        --collect-submodules activitytrack --collect-data activitytrack --collect-data activitytrack_tui \
+        packaging/windows-launcher.py
+    - test -s dist/activitytrack-tui.exe && ls -l dist/activitytrack-tui.exe
+    # built, not started (see windows-wine): the zip has the name of the real Windows job's
+    - mkdir pack && cp dist/activitytrack-tui.exe LICENSE README.md pack/
+    - (cd pack && wine python -m zipfile -c "../dist/activitytrack-tui-$V-windows.zip" activitytrack-tui.exe LICENSE README.md)
+    - ls -l dist/*.zip
+  artifacts:
+    paths: ["dist/activitytrack-tui-*-windows.zip"]
+    expire_in: 30 days
+
 # the files go to the project's Generic Packages and the release links them
 # (permalinks .../-/releases/<tag>/downloads/<file>); a version with a suffix is a beta
 release:
@@ -189,7 +242,7 @@ release:
     - cd ..
     - |
       {
-        case "$V" in *-*) echo "activitytrack-tui $V: a test release." ;; *) echo "activitytrack-tui $V." ;; esac
+        case "$V" in *-*) echo "activitytrack-tui $V: a test release. Its Windows executable was built under Wine and has not been started: try it before relying on it." ;; *) echo "activitytrack-tui $V." ;; esac
         echo
         echo "ActivityTrack in the terminal, full screen: the same application as ActivityTrack Desktop and the command line, on the same data and pairing."
         echo

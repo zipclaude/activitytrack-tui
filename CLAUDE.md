@@ -37,7 +37,7 @@ flake8 activitytrack_tui tests packaging/activitytrack-tui
 python3 scripts/strings.py --check
 python3 -m unittest discover -s tests -t .
 ```
-The job `windows` of `.gitlab-ci.yml` runs the same tests on Windows (paid shared runner, on command).
+The job `windows-wine` runs them under Wine on the local runner in every merge request pipeline (free). The job `windows` runs them on real Windows (paid shared runner, stable tags only); `windows-wine-exe` builds the executable under Wine for betas and by-hand pipelines, but Wine cannot start a PyInstaller bundle, so it is built and not tried.
 
 ## 3. A release touches
 
