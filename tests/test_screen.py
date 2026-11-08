@@ -156,7 +156,7 @@ class ScreenTest(unittest.TestCase):
     def test_a_newer_version_is_offered_and_downloaded_with_its_sha256_checked(self):
         self.announced()
         self.patched()
-        box = self.popup("2")
+        box = self.popup("\n")
         self.screen.key("a")
         shown = [text for _y, text, _a in box.lines]
         self.assertTrue(any("9.9.9" in text for text in shown))
@@ -167,10 +167,20 @@ class ScreenTest(unittest.TestCase):
         # another file than the manifest's: refused, nothing left
         self.patched(body=b"another")
         (next((self.app.session.folder / "updates").glob("*.tar.gz"))).unlink()
-        self.popup("2")
+        self.popup("\n")
         self.screen.key("a")
         self.assertIn("Scaricamento non riuscito", self.screen.message)
         self.assertEqual([], list((self.app.session.folder / "updates").glob("*.tar.gz")))
+
+    def test_the_selection_starts_on_the_download_and_the_digit_still_works(self):
+        self.announced()
+        self.patched()
+        self.popup("\x1b")
+        self.screen.key("a")
+        self.assertNotIn("Scaricato", self.screen.message)  # Esc: nothing downloaded
+        box = self.popup("\n")
+        self.screen.key("a")
+        self.assertIn("Scaricato e controllato", self.screen.message)  # Enter at once: downloaded
 
     def test_a_package_manager_installation_is_not_offered_the_download(self):
         self.announced(component="tui-deb13")
@@ -238,6 +248,12 @@ class ScreenTest(unittest.TestCase):
     def test_a_menu_takes_ascii_digits_only(self):
         self.popup("²", "2")
         self.assertEqual(self.screen.menu("T", ["a", "b"]), 1)
+
+    def test_a_menu_starts_on_the_selected_entry(self):
+        self.popup("\n")
+        self.assertEqual(self.screen.menu("T", ["a", "b", "c"], selected=2), 2)
+        self.popup("\n")
+        self.assertEqual(self.screen.menu("T", ["a", "b"], selected=9), 1)
 
     def test_a_long_menu_scrolls_with_the_selection(self):
         box = self.popup(*[curses.KEY_DOWN] * 20, "\n")

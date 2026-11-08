@@ -373,7 +373,8 @@ class Screen:
         # the box's width: the text in lines, then the choices
         lines = textwrap.wrap(text, 56) or [text]
         options = lines + ([_("Scarica")] if status.downloadable else [])
-        i = self.menu(_("Aggiornamenti"), options)
+        # Enter right away downloads: the selection starts on "Scarica", not on the text
+        i = self.menu(_("Aggiornamenti"), options, selected=len(lines) if status.downloadable else 0)
         self.say("")
         if i is None or i < len(lines):
             return
@@ -462,11 +463,11 @@ class Screen:
             pass
         return box, height, width
 
-    def menu(self, title, options):
-        """The index chosen, or None (Esc, q)."""
+    def menu(self, title, options, selected=0):
+        """The index chosen, or None (Esc, q); [selected] is the entry the selection starts on."""
         if not options:
             return None
-        sel = top = 0
+        sel, top = min(max(selected, 0), len(options) - 1), 0
         while True:
             box, height, width = self._box(len(options) + 2, max(len(title), *(len(o) for o in options)) + 8, title)
             if box is None:
