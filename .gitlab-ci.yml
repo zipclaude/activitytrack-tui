@@ -6,9 +6,11 @@
 # publishes nothing; started on a tag vX.Y.Z it also builds the Windows executable, tries everything
 # and publishes the release. The library is python3-activitytrack at the tag in .gitlab/lib-ref.
 
+# A merge request into next also starts a pipeline: all its jobs run on the local runner.
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "next"
 
 stages: [test, package, release]
 
