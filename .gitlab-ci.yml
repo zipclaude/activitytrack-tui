@@ -1,13 +1,15 @@
 # CI of activitytrack-tui on GitLab. No pipeline starts on its own (not on pushes or tags; a merge
 # request into next starts one, see workflow below): start one by hand ("Run pipeline" on a branch or tag) or with the pipelines API.
 # The Linux jobs run on the owner's local runner (tag local, set in default below), free of
-# charge. The Windows jobs (shared, paid runners) run only on a version tag, at the release.
+# charge, with the Wine jobs (windows-wine, windows-wine-exe). The real Windows jobs (windows,
+# windows-exe: shared, paid runners) run only on a stable tag (vX.Y.Z[.W]), at the release.
 # Started on a branch a pipeline tests and builds the Debian/Ubuntu packages and the tarball, and
-# publishes nothing; started on a tag vX.Y.Z it also builds the Windows executable, tries everything
-# and publishes the release. The library is python3-activitytrack at the tag in .gitlab/lib-ref.
+# publishes nothing (windows-wine-exe builds the executable under Wine, not tried); started on a stable
+# tag vX.Y.Z it builds the Windows executable on real Windows, tries everything and publishes the release;
+# on a beta tag vX.Y.Z-beta-N the executable comes from Wine, built and not started. The library is python3-activitytrack at the tag in .gitlab/lib-ref.
 
-# A merge request into next also starts a pipeline: only the job linux runs in it, on the local
-# runner (the other jobs need a tag or a pipeline started by hand).
+# A merge request into next also starts a pipeline: the jobs linux and windows-wine run in it, on the
+# local runner (the others need a tag or a pipeline started by hand).
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"
