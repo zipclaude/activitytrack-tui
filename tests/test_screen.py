@@ -178,7 +178,7 @@ class ScreenTest(unittest.TestCase):
         self.popup("\x1b")
         self.screen.key("a")
         self.assertNotIn("Scaricato", self.screen.message)  # Esc: nothing downloaded
-        box = self.popup("\n")
+        self.popup("\n")
         self.screen.key("a")
         self.assertIn("Scaricato e controllato", self.screen.message)  # Enter at once: downloaded
 
