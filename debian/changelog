@@ -1,3 +1,12 @@
+activitytrack-tui (0.9.9-1) unstable; urgency=medium
+
+  * Release 0.9.9, on the library 0.9.9, in step with ActivityTrack 0.9.9: the key `a` asks
+    the paired server for a newer version (a signed manifest, checked against
+    the key of the pairing link) and downloads the package with its sha256
+    checked, never for an installation of the package manager.
+
+ -- ActivityTrack <flavio-claude@zipman.it>  Sun, 08 Nov 2026 04:00:00 +0000
+
 activitytrack-tui (0.9.8-1) unstable; urgency=medium
 
   * Release 0.9.8, on the library 0.9.8, in step with ActivityTrack 0.9.8: the

@@ -13,7 +13,7 @@ Package: activitytrack-tui
 Architecture: all
 Depends: ${misc:Depends},
  python3 (>= 3.11),
- python3-activitytrack (>= 0.9.8)
+ python3-activitytrack (>= 0.9.9)
 Description: ActivityTrack in the terminal, full screen
  ActivityTrack records the work of freelancers and technicians: activities,
  travels, pauses and to-dos, on the Android app, on a web server of one's
