@@ -1,10 +1,13 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+import contextlib
 import curses
+import hashlib
 import sqlite3
 import tempfile
 import unittest
 from unittest import mock
 
+import activitytrack
 from activitytrack.app import App
 from activitytrack.pairing import Account
 from activitytrack_tui import screen as S
@@ -71,6 +74,8 @@ class ScreenTest(unittest.TestCase):
         self.app = App(self.dir.name)
         self.screen = S.Screen(Window(), self.app)
         self.screen.refresh = lambda: None
+        # the curses window of the tests draws nothing
+        self.screen.draw = lambda: None
         self.curs = mock.patch.object(S.curses, "curs_set")
         self.curs.start()
 
@@ -87,6 +92,109 @@ class ScreenTest(unittest.TestCase):
         box = Box(list(keys))
         self.screen._box = lambda height, width, title: (box, min(height, 12), min(width, 60))
         return box
+
+    # ---- updates from the paired server ----
+
+    def announced(self, key="signer", component="tui-tar"):
+        """The app paired, the store holding a manifest of 9.9.9 signed by the pinned key."""
+        import datetime
+        from cryptography import x509
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import ec
+        from cryptography.x509.oid import NameOID
+        from activitytrack import manifest
+        k = ec.generate_private_key(ec.SECP256R1())
+        name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "server")])
+        now = datetime.datetime.now(datetime.timezone.utc)
+        cert = (x509.CertificateBuilder().subject_name(name).issuer_name(name).public_key(k.public_key())
+                .serial_number(1).not_valid_before(now).not_valid_after(now + datetime.timedelta(days=1))
+                .sign(k, hashes.SHA256()))
+        pem = k.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+                              serialization.NoEncryption())
+        sha = hashlib.sha256(b"the package").hexdigest()
+        body = {"issued": "2026-11-07T10:00:00Z", "releases": [{"version": "9.9.9", "channel": "prod", "packages": [
+            {"component": component, "url": "/api/v1/update/files/" + sha, "sha256": sha}]}]}
+        fingerprint = manifest.fingerprint(cert.public_bytes(serialization.Encoding.DER))
+        self.app.store.set_state("account", Account("https://at.example.com", None, "d", "anna", "Anna", "user", "X",
+                                                    fingerprint if key == "signer" else "cd" * 32).to_json())
+        self.app.store.set_state("update.manifest", manifest.sign(body, pem, cert.public_bytes(
+            serialization.Encoding.PEM)))
+        self.app.runner.refresh_update = lambda: ""
+
+    def patched(self, package_manager=False, body=b"the package"):
+        class Down:
+            """The server's files, streamed."""
+            status = 200
+
+            @contextlib.contextmanager
+            def stream(self, path, headers=None):
+                self.rest = body
+                yield self
+
+            def read(self, n=-1):
+                piece, self.rest = self.rest[:n], self.rest[n:]
+                return piece
+        stack = contextlib.ExitStack()
+        self.addCleanup(stack.close)
+        activitytrack.set_client("ActivityTrackTui", "0.9.8")
+        self.addCleanup(activitytrack.set_client, "ActivityTrack", activitytrack.__version__)
+        stack.enter_context(mock.patch("activitytrack.session.Session.http", return_value=Down()))
+        stack.enter_context(mock.patch("activitytrack.manifest.from_package_manager", return_value=package_manager))
+        stack.enter_context(mock.patch("activitytrack.updates.distro", return_value="deb13"))
+
+    def test_updates_say_why_when_nothing_is_offered(self):
+        self.app.runner.refresh_update = lambda: ""
+        box = self.popup("\x1b")
+        self.screen.key("a")
+        self.assertTrue(any("Non associato" in text for _y, text, _a in box.lines))
+        self.announced(key="other")
+        box = self.popup("\x1b")
+        self.screen.key("a")
+        self.assertTrue(any("non è firmato" in text for _y, text, _a in box.lines))
+        self.assertIsNone(self.screen.news)
+
+    def test_a_newer_version_is_offered_and_downloaded_with_its_sha256_checked(self):
+        self.announced()
+        self.patched()
+        box = self.popup("\n")
+        self.screen.key("a")
+        shown = [text for _y, text, _a in box.lines]
+        self.assertTrue(any("9.9.9" in text for text in shown))
+        self.assertTrue(any("Scarica" in text for text in shown))
+        self.assertEqual(self.screen.news.version, "9.9.9")
+        self.assertIn("Scaricato e controllato", self.screen.message)
+        self.assertTrue(next((self.app.session.folder / "updates").glob("*.tar.gz")).read_bytes() == b"the package")
+        # another file than the manifest's: refused, nothing left
+        self.patched(body=b"another")
+        (next((self.app.session.folder / "updates").glob("*.tar.gz"))).unlink()
+        self.popup("\n")
+        self.screen.key("a")
+        self.assertIn("Scaricamento non riuscito", self.screen.message)
+        self.assertEqual([], list((self.app.session.folder / "updates").glob("*.tar.gz")))
+
+    def test_the_selection_starts_on_the_download_and_the_digit_still_works(self):
+        self.announced()
+        self.patched()
+        self.popup("\x1b")
+        self.screen.key("a")
+        self.assertNotIn("Scaricato", self.screen.message)  # Esc: nothing downloaded
+        self.popup("\n")
+        self.screen.key("a")
+        self.assertIn("Scaricato e controllato", self.screen.message)  # Enter at once: downloaded
+
+    def test_a_package_manager_installation_is_not_offered_the_download(self):
+        self.announced(component="tui-deb13")
+        self.patched(package_manager=True)
+        box = self.popup("\x1b")
+        self.screen.key("a")
+        shown = [text for _y, text, _a in box.lines]
+        self.assertTrue(any("gestore di pacchetti" in text for text in shown))
+        self.assertFalse(any("Scarica" in text for text in shown))
+
+    def test_the_sync_brings_the_news_to_the_header(self):
+        self.announced()
+        self.patched()
+        self.assertEqual(self.screen._news().version, "9.9.9")
 
     def test_the_sync_waits_longer_after_each_failure(self):
         app, sc = self.app, self.screen
@@ -140,6 +248,12 @@ class ScreenTest(unittest.TestCase):
     def test_a_menu_takes_ascii_digits_only(self):
         self.popup("²", "2")
         self.assertEqual(self.screen.menu("T", ["a", "b"]), 1)
+
+    def test_a_menu_starts_on_the_selected_entry(self):
+        self.popup("\n")
+        self.assertEqual(self.screen.menu("T", ["a", "b", "c"], selected=2), 2)
+        self.popup("\n")
+        self.assertEqual(self.screen.menu("T", ["a", "b"], selected=9), 1)
 
     def test_a_long_menu_scrolls_with_the_selection(self):
         box = self.popup(*[curses.KEY_DOWN] * 20, "\n")

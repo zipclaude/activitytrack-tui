@@ -48,6 +48,16 @@ The period and the states of the list.
 .B r
 Sync now.
 .TP
+.B a
+Updates: asks the server this PC is paired with for a newer version. Its
+announcement is signed and accepted only with the key of the pairing link
+(a PC paired with an older link, or an announcement signed by another key,
+is told why and offered nothing). The header shows a newer version known
+from the last sync. The package is downloaded from the server and its
+SHA-256 checked; an installation made by the package manager is told of the
+new version but not offered the download, as the package manager updates
+it.
+.TP
 .BR q ", " Esc
 Quit; in a popup, close it.
 .SH OPTIONS
