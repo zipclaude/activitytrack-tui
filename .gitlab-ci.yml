@@ -1,19 +1,21 @@
-# CI of activitytrack-tui on GitLab (free plan: the shared runners' minutes are limited, so
-# pipelines run for merge requests, the default branch and tags). A tag vX.Y.Z builds
-# the Debian/Ubuntu packages, the tarball and the Windows executable, tries them and
-# publishes the release. "Run pipeline" by hand does everything but publishing.
-# The library is python3-activitytrack at the tag in .gitlab/lib-ref.
+# CI of activitytrack-tui on GitLab. No pipeline starts on its own (not on pushes, merge requests
+# or tags): start one by hand ("Run pipeline" on a branch or tag) or with the pipelines API.
+# The Linux jobs run on the owner's local runner (tag local, set in default below), free of
+# charge. The Windows jobs (shared, paid runners) run only on a version tag, at the release.
+# Started on a branch a pipeline tests and builds the Debian/Ubuntu packages and the tarball, and
+# publishes nothing; started on a tag vX.Y.Z it also builds the Windows executable, tries everything
+# and publishes the release. The library is python3-activitytrack at the tag in .gitlab/lib-ref.
 
 workflow:
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-    - if: $CI_COMMIT_TAG =~ /^v[0-9]/
-    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"
 
 stages: [test, package, release]
 
 default:
+  # the Linux jobs run on the owner's local runner (podman, rootless, one job at a time);
+  # the Windows jobs name their own tags and stay on the shared Windows runners
+  tags: [local]
   interruptible: true
 
 variables:
@@ -40,6 +42,9 @@ linux:
 windows:
   stage: test
   tags: [saas-windows-medium-amd64]
+  # Windows only at the release (a version tag): the shared Windows runners are paid
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]/
   script:
     - choco install python313 --no-progress -y
     - $env:Path = "C:\Python313;C:\Python313\Scripts;" + $env:Path
@@ -50,13 +55,11 @@ windows:
     - python -m pip install -c requirements-windows.txt "git+$env:LIB_URL@$lib"
     - python -m unittest discover -s tests -t . -v
 
-# the packages are tried on a tag, by hand, and in merge requests that touch the packaging
+# the Linux packages are built on a tag and in a pipeline started by hand or by the API
 .packaging:
   rules:
     - if: $CI_COMMIT_TAG =~ /^v[0-9]/
-    - if: $CI_PIPELINE_SOURCE == "web"
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      changes: ["debian/**/*", "packaging/**/*", "requirements-*.txt", ".gitlab-ci.yml"]
+    - if: $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"
 
 deb:
   extends: .packaging
@@ -127,10 +130,12 @@ tarball:
     expire_in: 30 days
 
 windows-exe:
-  extends: .packaging
   stage: package
   # one executable for the console, with windows-curses; not signed (no costs: desktop's D10)
   tags: [saas-windows-medium-amd64]
+  # Windows only at the release (a version tag): the shared Windows runners are paid
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]/
   timeout: 30m
   script:
     - choco install python313 --no-progress -y
