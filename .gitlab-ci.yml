@@ -20,7 +20,8 @@ stages: [test, package, release]
 default:
   # the Linux jobs run on the owner's local runner (podman, rootless, one job at a time);
   # the Windows jobs name their own tags and stay on the shared Windows runners
-  tags: [local]
+  # the owner's test VM (agents/testvm-ci.md): faster and with a steady network; [local] = the owner's runner
+  tags: [testvm]
   interruptible: true
 
 variables:
