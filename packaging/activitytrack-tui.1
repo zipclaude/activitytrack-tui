@@ -25,19 +25,29 @@ PC use the desktop application or
 Move the selection.
 .TP
 .B Enter
-The actions of the selected row: the commands of an activity, completing
-it, starting, finishing, postponing or ignoring a to-do.
+The actions of the selected row, those its state allows: start (work or
+travel), pause, resume, travel, stop, reopen (asks to confirm), done or
+postpone a to-do, delete (into the bin) and restore. Each row shows the
+symbol, the colour and the name of its state: to do, planned, late, work,
+travel, pause, suspended, done, incomplete, absence, deleted.
 .TP
 .B n
-A new activity: description, client (typing filters the list; a new name
-becomes a new client when the policy allows it), work or travel, start time.
+A new one, of four kinds: to-do (title, client, priority from none to
+emergency, plan and due date), work (description, client; now, already
+started or past with start and end), travel, absence (company optional, kind
+absence, holiday, leave or sickness, from and to day, optional times). In
+the client list typing filters it; a new name becomes a new client when the
+policy allows it.
 .TP
 .B t
 A new to-do.
 .TP
-.BR p ", " s ", " v ", " u
-Pause or resume, stop, travel, suspend the selected activity (or the one
-running).
+.BR p ", " s ", " v
+Pause or resume, stop, travel the selected activity (or the one running).
+Travel from work asks "Have you completed the work activity?"; stopping an
+activity that went out and worked offers to start the return trip, to end
+it, or to end it and add the return trip. There is no suspend command: an
+activity is suspended when another one starts.
 .TP
 .B d
 The selected to-do is done.

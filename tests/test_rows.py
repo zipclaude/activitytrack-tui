@@ -23,8 +23,8 @@ class RowsTest(unittest.TestCase):
     def test_rows_and_actions(self):
         self.assertEqual([r.kind for r in R.rows(self.app)], ["heading", "empty"])
         a = self.app.work.start(StartRequest(client="Acme", activity="Rete"))
-        self.app.work.command(a, PAUSE)
-        self.app.todos.save(None, "Backup", plan_date=date.today(), plan_min=23 * 60 + 50)
+        self.app.work.switch(a, PAUSE)
+        self.app.work.save_todo(None, "Backup", plan_date=date.today(), plan_min=23 * 60 + 50, priority=3)
         rows = R.rows(self.app, period=0)
         kinds = [r.kind for r in rows]
         self.assertEqual(kinds[:2], ["heading", "entry"])
@@ -33,8 +33,13 @@ class RowsTest(unittest.TestCase):
         self.assertEqual((entry.text, entry.colour), ("Acme · Rete", "yellow"))
         labels = [label for label, _a in R.actions(self.app, entry)]
         self.assertEqual(labels[:3], ["Riprendi", "Viaggio", "Stop"])
+        self.assertNotIn("Sospendi", labels)
+        self.assertIn("‖ In pausa", entry.detail)
         todo = next(r for r in rows if r.kind == "todo")
-        self.assertEqual([a for _l, a in R.actions(self.app, todo)][:2], [("todo_start",), ("todo_done",)])
+        self.assertEqual([a for _l, a in R.actions(self.app, todo)][:3],
+                         [("act", "start", "WORK"), ("act", "start", "TRAVEL"), ("act", "tick", None)])
+        self.assertIn("Alta", todo.detail)
+        self.assertNotIn("P3", todo.detail)
         self.assertEqual(R.next_period(0), -1)
         self.assertEqual(R.show_label(["MISSING", "TODO"]), "Da fare, Dettagli mancanti")
 

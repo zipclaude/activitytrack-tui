@@ -16,11 +16,12 @@ import threading
 import time
 
 import activitytrack
-from activitytrack import texts, updates
-from activitytrack.app import InputError, describe_error, parse_when
+from activitytrack import model, texts, updates
+from activitytrack.app import InputError, describe_error, parse_day, parse_minute, parse_when
+from activitytrack.homelist import SHOWS
 from activitytrack.i18n import _
 from activitytrack.manifest import ManifestError
-from activitytrack.work import ACTIVE, PAUSE, STOP, TO_COMPLETE, TRAVEL, WORK, StartRequest, WorkError
+from activitytrack.work import PAUSE, TRAVEL, WORK, StartRequest, WorkError
 
 from . import rows as R
 
@@ -35,6 +36,10 @@ MIN_H, MIN_W = 6, 30
 log = logging.getLogger(__name__)
 _COLOURS = {"green": curses.COLOR_GREEN, "yellow": curses.COLOR_YELLOW, "blue": curses.COLOR_BLUE,
             "magenta": curses.COLOR_MAGENTA, "red": curses.COLOR_RED, "cyan": curses.COLOR_CYAN}
+# the colours of texts.DISPLAY_COLOURS beyond the eight: (256-colour number, the eight-colour fallback);
+# "white" is the terminal's own foreground
+_EXTRA = {"orange": (208, "yellow"), "brown": (130, "red"), "pink": (205, "magenta"), "greenish": (71, "green"),
+          "reddish": (167, "red")}
 
 
 class Screen:
@@ -73,10 +78,17 @@ class Screen:
         for i, (name, colour) in enumerate(_COLOURS.items(), 1):
             curses.init_pair(i, colour, background)
             self.pairs[name] = curses.color_pair(i)
+        wide = curses.COLORS >= 256
+        for i, (name, (number, fallback)) in enumerate(_EXTRA.items(), len(_COLOURS) + 1):
+            if wide:
+                curses.init_pair(i, number, background)
+                self.pairs[name] = curses.color_pair(i)
+            else:
+                self.pairs[name] = self.pairs.get(fallback, 0)
 
     def attr(self, colour, bold=False):
         a = curses.A_BOLD if bold else 0
-        if colour == "dim":
+        if colour in ("dim", "grey"):
             return a | curses.A_DIM
         return a | self.pairs.get(colour, 0)
 
@@ -227,7 +239,7 @@ class Screen:
             self._row(body_top + n, self.rows[i], part, i == self.sel, w)
         if self.message:
             self._put(h - 2, 1, self.message, self.attr(self.message_colour, bold=True), w)
-        keys = _("⏎ azioni  n nuova attività  t nuovo Da fare  p pausa  s stop  v viaggio  d fatto  f periodo  "
+        keys = _("⏎ azioni  n nuovo  p pausa  s stop  v viaggio  d fatto  f periodo  "
                  "g stato  r sincronizza  a aggiornamenti  q esci")
         self._put(h - 1, 0, (" " + keys).ljust(w), curses.A_REVERSE, w)
         win.refresh()
@@ -272,7 +284,7 @@ class Screen:
         elif key in ("\n", "\r", curses.KEY_ENTER):
             self._actions()
         elif key == "n":
-            self._new_entry()
+            self._new()
         elif key == "t":
             self._new_todo()
         elif key == "f":
@@ -288,8 +300,8 @@ class Screen:
             self._shortcut(R.SHORTCUTS[key])
         elif key == "d":
             row = self.current()
-            if row and row.kind == "todo":
-                self._do(("todo_done",), row)
+            if row and row.kind == "todo" and row.state != "DELETED":
+                self._do(("act", "tick", None), row)
         else:
             return
         self.refresh()
@@ -302,20 +314,52 @@ class Screen:
     def _shortcut(self, what):
         row = self.current()
         if not row or row.kind != "entry":
-            entry = self.app.running_one(active_only=True)
+            entry = self.app.running_one()
         else:
             entry = row.record
-        if what == "pause":
-            cmd = WORK if entry.get("mode") == PAUSE or entry.get("status") != ACTIVE else PAUSE
+        acts = texts.entry_actions(self.app.work, entry)
+        if what == "stop":
+            pick = next((a for a in acts if a.verb == "stop"), None)
+        elif what == "travel":
+            pick = next((a for a in acts if a.kind == TRAVEL), None)
         else:
-            cmd = what
-        self._command(entry, cmd)
+            # pause, or resume from it: the second button of a pause is "Riprendi"
+            pick = next((a for a in acts if a.kind == PAUSE or a.label == _("Riprendi")), None)
+        if pick is None:
+            raise InputError(_("Comando non possibile in questo stato."))
+        self._act(entry, pick.verb, pick.kind)
 
-    def _command(self, entry, cmd):
-        status = self.app.work.command(entry["uid"], cmd)
+    def _ask(self, title, options):
+        """The index chosen of a question's answers, None when cancelled."""
+        return self.menu(title, options)
+
+    def _act(self, entry, verb, kind):
+        """One button of an activity, with the questions of the spec (§3, §3.2) put first."""
+        work, uid = self.app.work, entry["uid"]
+        if verb == "travel_from_work":
+            i = self._ask(_("Hai completato l'attività lavorativa?"), [_("Sì"), _("No")])
+            if i is None:
+                return
+            work.travel_from_work(uid, i == 0)
+        elif verb == "stop" and work.return_trip_offered(uid):
+            options = [_("Avvia viaggio di ritorno"), _("Termina l'attività")]
+            if work.return_trip_addable(uid):
+                options.append(_("Termina l'attività ed aggiungi il viaggio di ritorno"))
+            i = self._ask(_("Terminare l'attività?"), options)
+            if i is None:
+                return
+            if i == 0:
+                work.travel_back(uid)
+            else:
+                work.stop(uid, return_trip=i == 2)
+        elif verb in ("reopen", "delete"):
+            question = _("Riaprire l'attività?") if verb == "reopen" else _("Eliminare l'attività?")
+            if self._ask(question, [_("Sì"), _("No")]) != 0:
+                return
+            work.perform(uid, verb, kind)
+        else:
+            work.perform(uid, verb, kind)
         self.changed()
-        if cmd == STOP and status == TO_COMPLETE:
-            self._complete(self.app.work.entry(entry["uid"]))
 
     def changed(self):
         self.want_sync()
@@ -335,9 +379,10 @@ class Screen:
     def _do(self, action, row):
         app, rec = self.app, row.record
         kind = action[0]
-        if kind == "command":
-            self._command(rec, action[1])
-        elif kind == "describe":
+        if kind == "act":
+            self._act(rec, action[1], action[2])
+            return
+        if kind == "describe":
             text = self.prompt(_("Descrizione"), rec.get("activity") or "")
             if text is not None:
                 app.work.edit(rec["uid"], activity=text)
@@ -345,22 +390,8 @@ class Screen:
             client = self.pick_client()
             if client is not None:
                 app.work.edit(rec["uid"], client=client)
-        elif kind == "complete":
-            self._complete(rec)
-        elif kind == "todo_start":
-            running = [e for e in app.work.running() if e.get("status") == ACTIVE]
-            # as the desktop: the ones at work or travelling suspended, a paused one left as it is
-            others = {e["uid"]: "SUSPEND" for e in running if e.get("mode") != PAUSE}
-            app.work.start(StartRequest(activity=rec.get("title") or "", client=rec.get("clientUid"),
-                                        company=rec.get("companyUid"), todo=rec["uid"], others=others))
-        elif kind == "todo_done":
-            app.todos.set_done(rec["uid"])
-        elif kind == "todo_postpone":
-            app.todos.postpone(rec["uid"])
-        elif kind == "todo_ignore":
-            app.todos.set_ignored(rec["uid"])
-        elif kind == "todo_reopen":
-            app.todos.reopen(rec["uid"])
+        elif kind == "postpone":
+            app.work.postpone(rec["uid"])
         self.changed()
 
     def _updates(self):
@@ -387,46 +418,80 @@ class Screen:
         else:
             self.say(_("Scaricato e controllato: %s") % path, "green")
 
-    def _complete(self, entry):
-        """The stop sheet: description, client, the to-do done."""
-        text = self.prompt(_("Completa l'attività — descrizione"), entry.get("activity") or "")
-        if text is None:
+    def _new(self):
+        """The four creations (§3): Da fare, Lavoro, Viaggio, Assenza."""
+        policy = self.app.work.policy
+        modes = [("todo", _("Da fare")), ("work", texts.KINDS[WORK])]
+        if policy.feature("travel"):
+            modes.append(("travel", texts.KINDS[TRAVEL]))
+        modes.append(("absence", texts.KINDS[model.ABSENCE]))
+        i = self.menu(_("Nuovo"), [label for _m, label in modes])
+        if i is None:
             return
-        client = entry.get("clientUid") or self.pick_client()
-        self.app.work.edit(entry["uid"], activity=text, client=client or "")
-        todo = self.app.store.get("todo", entry["todoUid"]) if entry.get("todoUid") else None
-        if todo and not todo.get("done"):
-            if self.menu(_("Il Da fare «%s» è completato") % todo.get("title"), [_("Sì"), _("No")]) == 0:
-                self.app.todos.set_done(todo["uid"])
-        if text:
-            self.app.work.complete(entry["uid"])
-            self.say(_("Attività chiusa."), "green")
-        else:
-            self.say(_("Resta tra i dettagli mancanti."), "yellow")
-        self.changed()
+        {"todo": self._new_todo, "work": self._new_work, "travel": self._new_travel,
+         "absence": self._new_absence}[modes[i][0]]()
 
-    def _new_entry(self):
+    def _new_work(self):
         text = self.prompt(_("Nuova attività — descrizione"))
         if text is None:
             return
         client = self.pick_client()
         if client is None:
             return
-        mode = WORK
-        if self.app.work.policy.feature("travel"):
-            choice = self.menu(_("Tipo"), [texts.KINDS[WORK], texts.KINDS[TRAVEL]])
-            if choice is None:
-                return
-            mode = (WORK, TRAVEL)[choice]
-        when = self.prompt(_("Iniziata alle (vuoto: adesso)"))
+        when = self.menu(_("Quando"), [_("Adesso"), _("Già iniziata"), _("Passata")])
         if when is None:
             return
-        running = [e for e in self.app.work.running() if e.get("status") == ACTIVE]
-        # as the desktop: the ones at work or travelling suspended, a paused one left as it is
-        others = {e["uid"]: "SUSPEND" for e in running if e.get("mode") != PAUSE}
-        self.app.work.start(StartRequest(activity=text, client=client, mode=mode, others=others,
-                                         start_ms=parse_when(when) if when else None))
+        start = end = None
+        if when:
+            start = self.prompt(_("Iniziata alle (HH:MM, o giorno e ora)"))
+            if not start:
+                return
+            start = parse_when(start)
+        if when == 2:
+            end = self.prompt(_("Finita alle (HH:MM, o giorno e ora)"))
+            if not end:
+                return
+            end = parse_when(end)
+        self.app.work.start(StartRequest(activity=text, client=client, mode=WORK, start_ms=start, end_ms=end))
+        self.say(_("Attività salvata.") if end else _("Attività avviata."), "green")
+        self.changed()
+
+    def _new_travel(self):
+        text = self.prompt(_("Nuovo viaggio — descrizione (facoltativa)"))
+        if text is None:
+            return
+        self.app.work.start(StartRequest(activity=text, mode=TRAVEL))
         self.say(_("Attività avviata."), "green")
+        self.changed()
+
+    def _new_absence(self):
+        work = self.app.work
+        company = self.pick("company", texts.FIELDS["company"], allow_none=True)
+        if company is None:
+            return
+        kinds = list(model.ABSENCE_KINDS)
+        k = self.menu(_("Tipo di assenza"), [texts.ABSENCE_KINDS[x] for x in kinds])
+        if k is None:
+            return
+        first = self.prompt(_("Dal giorno (per esempio oggi, 3/11)"), "oggi")
+        if not first:
+            return
+        last = self.prompt(_("Al giorno (vuoto: lo stesso)"))
+        if last is None:
+            return
+        times = self.prompt(_("Orario, da-a (per esempio 9:00-11:30; vuoto: la giornata)"))
+        if times is None:
+            return
+        start_min = end_min = None
+        if times:
+            parts = [x.strip() for x in times.replace("–", "-").split("-")]
+            if len(parts) != 2:
+                raise InputError(_("Orario non valido: «%s» (per esempio 9:30).") % times)
+            start_min, end_min = parse_minute(parts[0]), parse_minute(parts[1])
+        first_day = parse_day(first)
+        work.save_absence(None, first_day, parse_day(last) if last else None, company=company or None,
+                          absence_kind=kinds[k], start_min=start_min, end_min=end_min)
+        self.say(_("Assenza salvata."), "green")
         self.changed()
 
     def _new_todo(self):
@@ -434,11 +499,31 @@ class Screen:
         if not title:
             return
         client = self.pick_client(allow_none=True)
-        self.app.todos.save(None, title, client=client)
+        if client is None:
+            return
+        p = self.menu(_("Priorità"), [texts.PRIORITIES[n] for n in model.PRIORITIES])
+        if p is None:
+            return
+        plan = self.prompt(_("Pianificazione: giorno [ora [durata in minuti]] (vuoto: nessuna)"))
+        if plan is None:
+            return
+        due = self.prompt(_("Scadenza: giorno [ora] (vuoto: nessuna)"))
+        if due is None:
+            return
+        kw = {}
+        if plan.split():
+            parts = plan.split()
+            kw["plan_date"] = parse_day(parts[0])
+            kw["plan_min"] = parse_minute(parts[1]) if len(parts) > 1 else None
+            kw["duration_min"] = int(parts[2]) if len(parts) > 2 and parts[2].isdecimal() else None
+        if due.split():
+            parts = due.split()
+            kw["due_date"] = parse_day(parts[0])
+            kw["due_min"] = parse_minute(parts[1]) if len(parts) > 1 else None
+        self.app.work.save_todo(None, title, client=client or None, priority=p, **kw)
         self.changed()
 
     def _choose_show(self):
-        from activitytrack.todos import SHOWS
         options = [("✓ " if s in self.show else "  ") + texts.SHOWS[s] for s in SHOWS]
         i = self.menu(_("Stato"), options)
         if i is not None:
@@ -527,10 +612,12 @@ class Screen:
             curses.curs_set(0)
 
     def pick_client(self, allow_none=False):
-        """A client: typing filters the list; a name not there becomes a new one (the policy permitting)."""
-        clients = self.app.work.masters("client")
+        return self.pick("client", texts.FIELDS["client"], allow_none)
+
+    def pick(self, type_, title, allow_none=False):
+        """A record: typing filters the list; a name not there becomes a new one (the policy permitting)."""
+        clients = self.app.work.masters(type_)
         typed, sel = "", 0
-        title = texts.FIELDS["client"]
         top = 0
         while True:
             found = [c for c in clients if typed.casefold() in (c.get("name") or "").casefold()]

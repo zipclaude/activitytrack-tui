@@ -15,8 +15,8 @@ application or `activitytrack pair`.
 |---|---|
 | ↑ ↓, j k | move |
 | Enter | the actions of the row |
-| n, t | new activity, new to-do |
-| p, s, v, u | pause/resume, stop, travel, suspend |
+| n, t | new (to-do, work, travel, absence), new to-do |
+| p, s, v | pause/resume, stop, travel (asks the questions of the model: work completed? return trip?) |
 | d | to-do done |
 | f, g | period, states of the list |
 | r | sync now |

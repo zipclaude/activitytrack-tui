@@ -293,3 +293,85 @@ class ScreenTest(unittest.TestCase):
         with self.assertLogs("activitytrack_tui.screen", "ERROR"):
             sc.run()
         self.assertIn("RuntimeError: boom", sc.message)
+
+
+class FlowsTest(ScreenTest):
+    """The commands of the activity model 1.0 through the keys (ACTIVITY-MODEL.md §3, §3.2)."""
+
+    def answers(self, *menus, prompts=()):
+        self.asked = []
+        menus, prompts = list(menus), list(prompts)
+
+        def menu(title, options, selected=0):
+            self.asked.append((title, options))
+            return menus.pop(0)
+        self.screen.menu = menu
+        self.screen.prompt = lambda label, default="": prompts.pop(0)
+
+    def start(self, **kw):
+        from activitytrack.work import StartRequest
+        self.app.store.write("client", "c", {"name": "Acme", "archived": False}, 1)
+        return self.app.work.start(StartRequest(client="c", activity="Rete", **kw))
+
+    def test_travel_from_work_asks_and_yes_closes_the_activity(self):
+        uid = self.start()
+        self.answers(0)
+        self.screen.key("v")
+        self.assertEqual(self.asked[0][0], "Hai completato l'attività lavorativa?")
+        self.assertEqual(self.app.work.entry(uid)["status"], "CLOSED")
+        (new,) = [e for e in self.app.work.running()]
+        self.assertEqual((new["uid"] != uid, new["mode"]), (True, "TRAVEL"))
+
+    def test_travel_from_work_no_switches(self):
+        uid = self.start()
+        self.answers(1)
+        self.screen.key("v")
+        self.assertEqual(self.app.work.entry(uid)["mode"], "TRAVEL")
+
+    def test_stop_offers_the_return_trip(self):
+        from activitytrack.work import TRAVEL, WORK
+        now = self.app.work.clock()
+        uid = self.start(start_ms=now - 4 * 3_600_000, mode=TRAVEL)
+        self.app.work.switch(uid, WORK, at=now - 3 * 3_600_000)
+        self.answers(2)
+        self.screen.key("s")
+        self.assertEqual(len(self.asked[0][1]), 3)
+        self.assertEqual(self.app.work.entry(uid)["status"], "CLOSED")
+        self.assertEqual([s["kind"] for s in self.app.work.segments(uid)], [TRAVEL, WORK, TRAVEL])
+
+    def test_a_plain_stop_asks_nothing_and_no_suspend_key(self):
+        uid = self.start()
+        self.answers()
+        self.screen.key("u")
+        self.screen.key("s")
+        self.assertEqual((self.asked, self.app.work.entry(uid)["status"]), ([], "CLOSED"))
+
+    def test_reopen_asks_to_confirm(self):
+        uid = self.start()
+        self.app.work.stop(uid)
+        self.screen.refresh = S.Screen.refresh.__get__(self.screen)
+        self.screen.period, self.screen.show = 0, ["TODO", "DONE", "MISSING"]
+        self.screen.refresh()
+        row = next(r for r in self.screen.rows if r.record.get("uid") == uid)
+        self.answers(1)
+        self.screen._do(("act", "reopen", "WORK"), row)
+        self.assertEqual(self.app.work.entry(uid)["status"], "CLOSED")
+        self.answers(0)
+        self.screen._do(("act", "reopen", "WORK"), row)
+        self.assertEqual(self.app.work.entry(uid)["status"], "RUNNING")
+
+    def test_new_todo_with_a_priority_and_a_plan(self):
+        self.answers(4, prompts=["Backup", "oggi 23:00 30", ""])
+        self.screen.pick_client = lambda allow_none=False: ""
+        self.screen._new_todo()
+        (t,) = self.app.work.todo_list()
+        self.assertEqual((t["activity"], t["priority"], t["planStartMin"], t["durationMin"]), ("Backup", 4, 1380, 30))
+        self.assertEqual(self.asked[0][1][4], "Urgente")
+
+    def test_new_absence(self):
+        self.screen.pick = lambda type_, title, allow_none=False: ""
+        self.answers(2, prompts=["oggi", "", "9:00-11:00"])
+        self.screen._new_absence()
+        (a,) = [e for e in self.app.work.entries() if e["kind"] == "ABSENCE"]
+        self.assertEqual(a["absenceKind"], "LEAVE")
+        self.assertEqual(self.app.work.display(a)[0], "ABSENCE")
