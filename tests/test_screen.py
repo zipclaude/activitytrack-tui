@@ -346,6 +346,16 @@ class FlowsTest(ScreenTest):
         self.screen.key("s")
         self.assertEqual((self.asked, self.app.work.entry(uid)["status"]), ([], "CLOSED"))
 
+    def test_the_keys_act_on_the_activity_being_worked_not_on_a_suspended_one(self):
+        from activitytrack.work import PAUSE, SUSPEND, StartRequest
+        suspended = self.start()
+        worked = self.app.work.start(StartRequest(client="c", activity="Stampanti", others={suspended: SUSPEND}))
+        self.assertIsNone(self.app.work.open_segment(suspended))
+        self.answers()
+        self.screen.key("p")
+        self.assertEqual(self.app.work.entry(worked)["mode"], PAUSE)
+        self.assertEqual(self.asked, [])
+
     def test_reopen_asks_to_confirm(self):
         uid = self.start()
         self.app.work.stop(uid)

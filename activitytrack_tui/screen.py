@@ -314,7 +314,7 @@ class Screen:
     def _shortcut(self, what):
         row = self.current()
         if not row or row.kind != "entry":
-            entry = self.app.running_one()
+            entry = self.app.running_one(active_only=True)
         else:
             entry = row.record
         acts = texts.entry_actions(self.app.work, entry)
