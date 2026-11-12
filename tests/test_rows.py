@@ -43,6 +43,18 @@ class RowsTest(unittest.TestCase):
         self.assertEqual(R.next_period(0), -1)
         self.assertEqual(R.show_label(["MISSING", "TODO"]), "Da fare, Dettagli mancanti")
 
+    def test_an_absence_has_no_description_or_client_to_edit(self):
+        a = self.app.work.save_absence(None, date(2026, 11, 16), absence_kind="LEAVE", start_min=540, end_min=600)
+        absence = R.Row("stopped", "Permesso", "", "", "white", self.app.work.entry(a), "ABSENCE")
+        verbs = [action[0] for _label, action in R.actions(self.app, absence)]
+        self.assertNotIn("describe", verbs)
+        self.assertNotIn("client", verbs)
+        b = self.app.work.start(StartRequest(client="Acme", activity="Rete"))
+        work = R.Row("entry", "Acme · Rete", "", "", "white", self.app.work.entry(b), "WORK")
+        verbs = [action[0] for _label, action in R.actions(self.app, work)]
+        self.assertIn("describe", verbs)
+        self.assertIn("client", verbs)
+
 
 @unittest.skipIf(sys.platform == "win32", "a pseudo-terminal")
 class TerminalTest(unittest.TestCase):

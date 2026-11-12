@@ -83,7 +83,9 @@ def actions(app, row):
         if row.kind == "todo" and rec.get("planDate") and work.policy.feature("planning") \
                 and rec.get("status") == model.TODO:
             out.insert(-1 if out and out[-1][1][1] == "delete" else len(out), (_("Posticipa"), ("postpone",)))
-        out += [(_("Modifica la descrizione"), ("describe",)), (_("Modifica il cliente"), ("client",))]
+        # an absence has no description or client
+        if rec.get("kind") != model.ABSENCE:
+            out += [(_("Modifica la descrizione"), ("describe",)), (_("Modifica il cliente"), ("client",))]
     return out
 
 
