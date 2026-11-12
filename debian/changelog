@@ -1,3 +1,22 @@
+activitytrack-tui (1.0.0~alfa-1-1) unstable; urgency=medium
+
+  * ALPHA pre-release of 1.0 (tag v1.0.0-alfa-1). Synchronisation requires the
+    server and every device to be on 1.0 (wire schema 3: older apps are told
+    to update). Existing data is migrated automatically and backups made by
+    older versions can still be restored.
+  * The to-do is no longer a separate object: it is an activity in the state
+    "Da fare", one activity from plan to closure. Displayed states have an
+    icon and a colour; there is no "Sospendi" (an activity becomes Sospesa
+    only when another one starts). Priorities are named (Nessuna ... Emergenza)
+    and "Ignorate" is replaced by the Cestino (Ripristina / Elimina
+    definitivamente). Absences have a kind (Assenza, Ferie, Permesso,
+    Malattia), an optional company and one segment per working day.
+  * The key `n` opens the creation menu (Da fare, Lavoro: Adesso / Gia
+    iniziata / Passata, Viaggio, Assenza); the key `u` and the completion
+    sheet are gone; lists show absences. Built on the library 1.0.0~alfa-1.
+
+ -- ActivityTrack <flavio-claude@zipman.it>  Thu, 12 Nov 2026 12:31:24 +0000
+
 activitytrack-tui (0.9.9-1) unstable; urgency=medium
 
   * Release 0.9.9, on the library 0.9.9, in step with ActivityTrack 0.9.9: the key `a` asks
