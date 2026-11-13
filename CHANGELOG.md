@@ -4,14 +4,14 @@ What changes in behaviour, compatibility and features, release by release. Bug f
 listed one by one (read `git log` or the issues); security fixes are, under "Security", with
 their issue.
 
-## 1.0.0 (pre-release: alfa-1, alfa-2)
+## 1.0.0 (pre-release: alfa-1, alfa-2, beta-1)
 
 The 1.0.0 release is in pre-release. This list is cumulative: it grows with each pre-release
 and is final at the release.
 
 ### Compatibility
 
-- Needs the library `python3-activitytrack` 1.0.0~alfa-2 or later, and so a server on 1.0
+- Needs the library `python3-activitytrack` 1.0.0~beta-1 or later, and so a server on 1.0
   (sync wire schema 3).
 - The data migrate by themselves to the activity model when the store is first opened; the
   to-do is now an activity in the state "Da fare".

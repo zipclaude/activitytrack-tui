@@ -1,3 +1,10 @@
+activitytrack-tui (1.0.0~beta-1-1) unstable; urgency=medium
+
+  * BETA pre-release of 1.0 (tag v1.0.0-beta-1), released together with the
+    app 1.0.0-beta-1. The changes are in CHANGELOG.md (the upstream changelog).
+
+ -- ActivityTrack contributors <noreply@activitytrack.invalid>  Fri, 13 Nov 2026 18:17:43 +0000
+
 activitytrack-tui (1.0.0~alfa-2-1) unstable; urgency=medium
 
   * ALPHA pre-release of 1.0 (tag v1.0.0-alfa-2), released together with the
