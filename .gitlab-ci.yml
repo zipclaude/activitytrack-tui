@@ -270,7 +270,7 @@ release:
         echo "ActivityTrack in the terminal, full screen: the same application as ActivityTrack Desktop and the command line, on the same data and pairing."
         echo
         echo "- Debian 13 / 14, Ubuntu 24.04 / 26.04: \`apt install ./python3-activitytrack_*-<distro>_all.deb ./activitytrack-tui_${V}-${R}-<distro>_all.deb\`; the library [python3-activitytrack]($LIB_URL/-/releases/$LIB) is in its own release"
-        echo "- Windows 10 / 11: `activitytrack-tui-$V-windows.zip`: `activitytrack-tui.exe`, to put in a folder of the PATH (Windows Terminal recommended). Not signed: check it against SHA256SUMS"
+        echo "- Windows 10 / 11: \`activitytrack-tui-$V-windows.zip\`: \`activitytrack-tui.exe\`, to put in a folder of the PATH (Windows Terminal recommended). Not signed: check it against SHA256SUMS"
         echo "- Elsewhere: \`pip install activitytrack-tui-$V.tar.gz\` after the library"
       } > notes.md
     - |
