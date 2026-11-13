@@ -1,0 +1,352 @@
+# CI of activitytrack-tui on GitHub, the backup of the GitLab project: it mirrors .gitlab-ci.yml
+# (keep the two in step), so the backup can test, package and release on its own if GitLab is unavailable.
+# Nothing runs on its own (not on pushes to other branches, not on tags, not on pull requests): start a
+# run by hand ("Run workflow" on a branch or tag) or push a branch ghtest/<name> (the equivalent of
+# GitLab's testvm/*: it tests a workflow that is not on the default branch yet).
+# The Linux jobs run in containers on GitHub's hosted runners, with the Wine jobs (windows-wine,
+# windows-wine-exe). The real Windows jobs (windows, windows-exe) run only on a stable tag (vX.Y.Z[.W]),
+# at the release.
+# Started on a branch a run tests and builds the Debian/Ubuntu packages and the tarball, and
+# publishes nothing (windows-wine-exe builds the executable under Wine, not tried); started on a stable
+# tag vX.Y.Z it builds the Windows executable on real Windows, tries everything and publishes the release;
+# on a beta tag vX.Y.Z-beta-N the executable comes from Wine, built and not started.
+# The library is python3-activitytrack at the tag in .gitlab/lib-ref, cloned from its GitHub backup
+# (the backup must not depend on GitLab).
+
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["ghtest/**"]
+
+permissions:
+  contents: read
+
+env:
+  DEBIAN_FRONTEND: noninteractive
+  LIB_URL: https://github.com/zipclaude/python3-activitytrack
+
+jobs:
+  # GitHub has no regular expressions in "if:": the tag tests of GitLab's rules are done here
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      stable: ${{ steps.check.outputs.stable }}
+      beta: ${{ steps.check.outputs.beta }}
+    steps:
+      - id: check
+        run: |
+          stable=false; beta=false
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            # stable: vX.Y.Z[.W]; beta (any suffix): vX.Y.Z-beta-N
+            if echo "$GITHUB_REF_NAME" | grep -Eq '^v[0-9]+(\.[0-9]+)*$'; then stable=true; fi
+            if echo "$GITHUB_REF_NAME" | grep -Eq '^v[0-9]+(\.[0-9]+)*-'; then beta=true; fi
+          fi
+          echo "stable=$stable" >> "$GITHUB_OUTPUT"
+          echo "beta=$beta" >> "$GITHUB_OUTPUT"
+
+  linux:
+    # the distributions' packages only: the oldest and the newest of the targets
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["debian:trixie", "debian:forky", "ubuntu:24.04"]
+    steps:
+      - name: Distribution packages
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git ca-certificates python3 python3-cryptography python3-keyring flake8
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # the library (python3-activitytrack at .gitlab/lib-ref)
+      - name: Library
+        run: git clone --depth 1 -b "$(cat .gitlab/lib-ref)" "$LIB_URL" lib
+      - name: Lint
+        run: flake8 activitytrack_tui tests packaging/activitytrack-tui
+      - name: Texts
+        run: PYTHONPATH="$PWD/lib" python3 scripts/strings.py --check
+      - name: Tests
+        run: PYTHONPATH="$PWD/lib" python3 -m unittest discover -s tests -t . -v
+
+  windows:
+    # Windows only at a stable release (vX.Y.Z[.W]). A beta (vX.Y.Z-beta-N) is tried under Wine
+    # (windows-wine, windows-wine-exe)
+    needs: plan
+    if: needs.plan.outputs.stable == 'true'
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # GitLab installs Python with choco on its bare shared runner; here the action does it
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      # the versions the executable bundles (requirements-windows.txt)
+      - name: Libraries
+        run: |
+          python -m pip install -r requirements-windows.txt
+          $lib = (Get-Content .gitlab/lib-ref).Trim()
+          python -m pip install -c requirements-windows.txt "git+$env:LIB_URL@$lib"
+          python -m pip install windows-curses
+      - name: Tests
+        run: python -m unittest discover -s tests -t . -v
+
+  # The Windows code paths under Wine (free): the tests of the Windows job, and,
+  # for a beta or a run started on a branch, the executable. Wine cannot start a PyInstaller bundle
+  # (python313.dll does not initialise), so the executable is built but not tried: the beta's notes say so.
+  windows-wine:
+    runs-on: ubuntu-latest
+    container:
+      image: tobix/pywine:3.13
+      # the workspace belongs to the runner's user, not to the image's; Docker's default seccomp profile
+      # makes Wine fail ("socket : Function not implemented"), and the container is a throw-away VM's
+      options: --user root --security-opt seccomp=unconfined
+    env:
+      WINEDEBUG: "-all"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Wine
+        run: mkdir -p /tmp/xdg && chmod 700 /tmp/xdg
+      - name: Tests
+        env:
+          XDG_RUNTIME_DIR: /tmp/xdg
+        run: |
+          LIB="$LIB_URL/archive/$(cat .gitlab/lib-ref).tar.gz"
+          wine python -m pip install -q --no-warn-script-location -r requirements-windows.txt
+          wine python -m pip install -q --no-warn-script-location -c requirements-windows.txt "$LIB"
+          wine python -m pip install -q --no-warn-script-location windows-curses
+          wine python -m unittest discover -s tests -t . -v
+
+  # the Linux packages are built on a tag and in a run started by hand (or on a ghtest/* branch).
+  # As in GitLab's stages, the package jobs wait for the test jobs, windows included when it runs
+  # (skipped on a beta tag: that must not stop them, hence the !failure() test).
+  deb:
+    needs: [linux, windows-wine, windows]
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: "debian:trixie", suffix: deb13 }
+          - { image: "debian:forky", suffix: deb14 }
+          - { image: "ubuntu:24.04", suffix: ubuntu24.04 }
+          - { image: "ubuntu:26.04", suffix: ubuntu26.04 }
+    steps:
+      - name: Build tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git build-essential debhelper dpkg-dev devscripts equivs man-db
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Version
+        run: |
+          V=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' activitytrack_tui/__init__.py)
+          # a release is built on a released library
+          if [ "$GITHUB_REF_TYPE" = tag ]; then test "v$V" = "$GITHUB_REF_NAME"; grep -q "^v" .gitlab/lib-ref; fi
+          # only the first "-": 0.9.4-beta5-1 is 0.9.4~beta5-1
+          DV=$(echo "$V" | sed 's/-/~/')
+          # the package: that version and a Debian revision, 1.1.0~beta.1-1
+          PV=$(dpkg-parsechangelog -S Version)
+          test "$(dpkg-parsechangelog -S Source)" = activitytrack-tui && test "${PV%-*}" = "$DV" && test "$PV" != "$DV"
+          grep -q "activitytrack-tui $V" packaging/activitytrack-tui.1
+          # the distribution goes in the revision: 1.1.0~beta.1-1~deb13 still satisfies (>= 1.1.0~beta.1)
+          sed -i "1s/($PV)/($PV~${{ matrix.suffix }})/" debian/changelog
+          head -1 debian/changelog
+      # the library's package (python3-activitytrack at .gitlab/lib-ref)
+      - name: Library package
+        run: |
+          git clone --depth 1 -b "$(cat .gitlab/lib-ref)" "$LIB_URL" /tmp/lib
+          cd /tmp/lib
+          # versioned as in its release (1.1.0~beta.1-1~deb13): the Depends are tried on that
+          sed -i "1s/(\([^)]*\))/(\1~${{ matrix.suffix }})/" debian/changelog
+          mk-build-deps -i -r -t "apt-get -y --no-install-recommends" debian/control
+          dpkg-buildpackage -b -us -uc
+          apt-get install -y /tmp/python3-activitytrack_*.deb
+      - name: Package
+        run: |
+          dpkg-buildpackage -b -us -uc
+          mkdir dist && mv ../activitytrack-tui_*.deb dist/
+          dpkg-deb --info dist/*.deb
+          dpkg-deb --contents dist/*.deb
+          apt-get install -y ./dist/*.deb
+      - name: Try it
+        run: |
+          activitytrack-tui --version
+          man -w activitytrack-tui
+          # the tests against the installed code, not the checkout's
+          mkdir /tmp/t && cp -r tests /tmp/t/ && cd /tmp/t
+          PYTHONPATH=/usr/share/activitytrack-tui python3 -m unittest discover -s tests -t . -v
+      - name: Remove
+        run: |
+          apt-get purge -y activitytrack-tui
+          test ! -e /usr/share/activitytrack-tui && test ! -e /usr/bin/activitytrack-tui
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: deb-${{ matrix.suffix }}
+          path: dist/*.deb
+          retention-days: 30
+
+  tarball:
+    needs: [linux, windows-wine, windows]
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Tarball
+        run: |
+          V=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' activitytrack_tui/__init__.py)
+          mkdir dist
+          git archive --prefix="activitytrack-tui-$V/" -o "dist/activitytrack-tui-$V.tar.gz" HEAD
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tarball
+          path: dist/*.tar.gz
+          retention-days: 30
+
+  windows-exe:
+    # one executable for the console, with windows-curses; not signed (no costs: desktop's D10)
+    # Windows only at a stable release (vX.Y.Z[.W]). A beta (vX.Y.Z-beta-N) is tried under Wine
+    # (windows-wine, windows-wine-exe)
+    needs: [plan, linux, windows-wine, windows]
+    if: ${{ !failure() && !cancelled() && needs.plan.outputs.stable == 'true' }}
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Libraries and tools
+        run: |
+          python -m pip install -r requirements-windows.txt -r requirements-build-windows.txt
+          $lib = (Get-Content .gitlab/lib-ref).Trim()
+          python -m pip install -c requirements-windows.txt "git+$env:LIB_URL@$lib"
+          python -m pip install windows-curses
+          # installed, so that PyInstaller finds its data files (the translations)
+          python -m pip install --no-deps .
+      - name: Version
+        run: |
+          $V = (Select-String -Path activitytrack_tui/__init__.py -Pattern '^__version__ = "(.*)"').Matches[0].Groups[1].Value
+          if ($env:GITHUB_REF_TYPE -eq "tag" -and "v$V" -ne $env:GITHUB_REF_NAME) { throw "tag $env:GITHUB_REF_NAME, version $V" }
+          "AT_VERSION=$V" >> $env:GITHUB_ENV
+      - name: Tests
+        run: python -m unittest discover -s tests -t .
+      - name: Executable
+        run: |
+          pyinstaller --noconfirm --clean --onefile --console --name activitytrack-tui --paths . `
+            --collect-submodules keyring.backends --collect-data tzdata `
+            --collect-submodules activitytrack --collect-data activitytrack --collect-data activitytrack_tui `
+            packaging/windows-launcher.py
+      - name: Try it
+        run: |
+          .\dist\activitytrack-tui.exe --version
+          if ($LASTEXITCODE -ne 0) { throw "version: $LASTEXITCODE" }
+      - name: Zip
+        run: |
+          New-Item -ItemType Directory -Path pack | Out-Null
+          Copy-Item dist/activitytrack-tui.exe, LICENSE, README.md pack/
+          Compress-Archive -Path pack/* -DestinationPath "dist/activitytrack-tui-$env:AT_VERSION-windows.zip"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows
+          path: dist/activitytrack-tui-*-windows.zip
+          retention-days: 30
+
+  windows-wine-exe:
+    # a beta tag, or a run started on a branch (never on a stable tag: windows-exe builds it there)
+    needs: [plan, linux, windows-wine, windows]
+    if: ${{ !failure() && !cancelled() && (needs.plan.outputs.beta == 'true' || github.ref_type == 'branch') }}
+    runs-on: ubuntu-latest
+    container:
+      image: tobix/pywine:3.13
+      # the workspace belongs to the runner's user, not to the image's; Docker's default seccomp profile
+      # makes Wine fail ("socket : Function not implemented"), and the container is a throw-away VM's
+      options: --user root --security-opt seccomp=unconfined
+    env:
+      WINEDEBUG: "-all"
+      XDG_RUNTIME_DIR: /tmp/xdg
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Wine
+        run: mkdir -p /tmp/xdg && chmod 700 /tmp/xdg
+      - name: Version
+        run: |
+          V=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' activitytrack_tui/__init__.py)
+          if [ "$GITHUB_REF_TYPE" = tag ]; then test "v$V" = "$GITHUB_REF_NAME"; fi
+          echo "AT_VERSION=$V" >> "$GITHUB_ENV"
+      - name: Libraries and tools
+        run: |
+          LIB="$LIB_URL/archive/$(cat .gitlab/lib-ref).tar.gz"
+          wine python -m pip install -q --no-warn-script-location -r requirements-windows.txt -r requirements-build-windows.txt
+          wine python -m pip install -q --no-warn-script-location -c requirements-windows.txt "$LIB"
+          wine python -m pip install -q --no-warn-script-location windows-curses
+          # installed, so that PyInstaller finds its data files (the translations)
+          wine python -m pip install -q --no-warn-script-location --no-deps .
+      - name: Tests
+        run: wine python -m unittest discover -s tests -t .
+      - name: Executable
+        run: |
+          wine python -m PyInstaller --noconfirm --clean --onefile --console --name activitytrack-tui --paths . \
+            --collect-submodules keyring.backends --collect-data tzdata \
+            --collect-submodules activitytrack --collect-data activitytrack --collect-data activitytrack_tui \
+            packaging/windows-launcher.py
+          test -s dist/activitytrack-tui.exe && ls -l dist/activitytrack-tui.exe
+      # built, not started (see windows-wine): the zip has the name of the real Windows job's
+      - name: Zip
+        run: |
+          mkdir pack && cp dist/activitytrack-tui.exe LICENSE README.md pack/
+          (cd pack && wine python -m zipfile -c "../dist/activitytrack-tui-$AT_VERSION-windows.zip" activitytrack-tui.exe LICENSE README.md)
+          ls -l dist/*.zip
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows
+          path: dist/activitytrack-tui-*-windows.zip
+          retention-days: 30
+
+  # the files are attached to the GitHub Release; a version with a suffix is a beta (prerelease).
+  # One of windows-exe and windows-wine-exe is skipped on a tag: that must not stop the release.
+  release:
+    needs: [deb, tarball, windows-exe, windows-wine-exe]
+    if: ${{ !failure() && !cancelled() && github.ref_type == 'tag' && startsWith(github.ref_name, 'v') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with: { path: artifacts, merge-multiple: true }
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          PV=$(sed -n '1s/^[^(]*(\(.*\)).*/\1/p' debian/changelog)
+          R="${PV##*-}"
+          LIB=$(cat .gitlab/lib-ref)
+          # GitHub turns "~" of an asset's name into ".": "-" instead
+          cd artifacts
+          for f in activitytrack-tui_*~*_all.deb; do mv "$f" "$(echo "$f" | tr '~' '-')"; done
+          sha256sum * > SHA256SUMS && cat SHA256SUMS
+          cd ..
+          {
+            case "$V" in *-*) echo "activitytrack-tui $V: a test release. Its Windows executable was built under Wine and has not been started: try it before relying on it." ;; *) echo "activitytrack-tui $V." ;; esac
+            echo
+            echo "ActivityTrack in the terminal, full screen: the same application as ActivityTrack Desktop and the command line, on the same data and pairing."
+            echo
+            echo "- Debian 13 / 14, Ubuntu 24.04 / 26.04: \`apt install ./python3-activitytrack_*-<distro>_all.deb ./activitytrack-tui_${V}-${R}-<distro>_all.deb\`; the library [python3-activitytrack]($LIB_URL/releases/tag/$LIB) is in its own release"
+            echo "- Windows 10 / 11: \`activitytrack-tui-$V-windows.zip\`: \`activitytrack-tui.exe\`, to put in a folder of the PATH (Windows Terminal recommended). Not signed: check it against SHA256SUMS"
+            echo "- Elsewhere: \`pip install activitytrack-tui-$V.tar.gz\` after the library"
+          } > notes.md
+          case "$V" in *-*) pre=--prerelease ;; *) pre= ;; esac
+          gh release create "v$V" artifacts/* --title "activitytrack-tui $V" --notes-file notes.md $pre
+
+  # GitLab only: the job testvm runs on the owner's test VM runner (tag testvm, an image built by hand there),
+  # with the library at a branch; GitHub's hosted runners do the same checks in the job linux.

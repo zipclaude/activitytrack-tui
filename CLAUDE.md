@@ -43,3 +43,7 @@ The job `windows-wine` runs them under Wine on the local runner in every merge r
 
 - `.gitlab/lib-ref` (tag of the library), `activitytrack_tui/__init__.py` (version), `debian/changelog`, `debian/control` (dependency on the library), the man page `.TH`.
 - The Windows executable is built with PyInstaller (`requirements-windows.txt`, `requirements-build-windows.txt`).
+
+## 4. GitHub backup
+
+GitHub (`zipclaude/activitytrack-tui`) is a backup of the GitLab project. The workflow in `.github/workflows/ci.yml` mirrors `.gitlab-ci.yml`: keep them in step. Nothing runs on its own there: start it with "Run workflow" on a branch or tag, or push a branch `ghtest/<name>` to try a change. It clones the library from its GitHub backup at the tag in `.gitlab/lib-ref`. The job `testvm` stays GitLab-only (it needs the owner's test VM runner).
