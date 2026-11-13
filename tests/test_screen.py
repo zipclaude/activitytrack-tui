@@ -339,6 +339,27 @@ class FlowsTest(ScreenTest):
         self.assertEqual(self.app.work.entry(uid)["status"], "CLOSED")
         self.assertEqual([s["kind"] for s in self.app.work.segments(uid)], [TRAVEL, WORK, TRAVEL])
 
+    def test_a_command_tells_what_it_moved_and_r_dismisses_the_sync_notices(self):
+        import time
+        from activitytrack import texts
+        from activitytrack.work import StartRequest
+        now = self.app.work.clock()
+        uid = self.start(start_ms=now - 3_600_000)
+        self.app.work.stop(uid, at=now + 3_600_000, exact=True)
+        self.app.work.start(StartRequest(client="c", activity="Cavi"))
+        self.screen.key("j")
+        self.assertIn("La fine di «Rete» è stata anticipata all'inizio della nuova attività.", self.screen.message)
+        self.assertEqual(self.screen.message_colour, "yellow")
+        # the next key has nothing to add
+        self.screen.message = ""
+        self.screen.key("j")
+        self.assertEqual(self.screen.message, "")
+        self.app.store.set_state("sync.notices", [{"code": "edit_dropped", "title": "Ticket",
+                                                   "at": int(time.time() * 1000)}])
+        self.assertIn("«Ticket»", texts.sync_notices(self.app.session)[0])
+        self.screen.key("r")
+        self.assertEqual(texts.sync_notices(self.app.session), [])
+
     def test_a_plain_stop_asks_nothing_and_no_suspend_key(self):
         uid = self.start()
         self.answers()

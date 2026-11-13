@@ -48,6 +48,7 @@ class Screen:
         self.period, self.show = -1, ["TODO", "MISSING"]
         self.rows, self.sel, self.top = [], 0, 0
         self.message, self.message_colour = "", ""
+        self.notes = []
         self.sync_state, self.sync_detail = "idle", ""
         self._sync_lock = threading.Lock()
         self._sync_wanted = threading.Event()
@@ -119,10 +120,12 @@ class Screen:
                 self.key(key)
             except (InputError, WorkError) as e:
                 self.say(describe_error(e), "red")
+                self._show_notes()
             except Exception as e:
                 # a bug, or the data locked for too long: said and logged, the screen stays
                 log.exception("unexpected error")
                 self.say(_("Errore inatteso: %s") % f"{type(e).__name__}: {e}", "red")
+                self._show_notes()
 
     def _tick(self):
         """Every second: the clock moves, another interface may have written."""
@@ -158,6 +161,12 @@ class Screen:
 
     def say(self, text, colour=""):
         self.message, self.message_colour = text, colour
+
+    def _show_notes(self):
+        """What the command left to tell (an end moved back, a planned segment removed) follows its message."""
+        if self.notes:
+            self.message = " ".join(filter(None, [self.message] + self.notes))
+            self.message_colour = self.message_colour or "yellow"
 
     # ---- the sync, in its own thread ----
 
@@ -272,6 +281,14 @@ class Screen:
     # ---- keys ----
 
     def key(self, key):
+        try:
+            self._key(key)
+        finally:
+            # the notices of the commands the key ran, also when one failed after the first
+            self.notes = self.app.work.take_notices()
+            self._show_notes()
+
+    def _key(self, key):
         selectable = [i for i, r in enumerate(self.rows) if r.selectable]
         if key in (curses.KEY_DOWN, "j"):
             later = [i for i in selectable if i > self.sel]
@@ -292,6 +309,8 @@ class Screen:
         elif key == "g":
             self._choose_show()
         elif key == "r":
+            # the notices of the sync are in the header, read: gone (those of the sync to come stay)
+            self.app.store.dismiss_notices()
             self.want_sync()
             self.say(_("Sincronizzazione…"))
         elif key == "a":
