@@ -115,7 +115,7 @@ class Screen:
             if key in ("q", "Q", "\x1b"):
                 self._stop = True
                 return
-            self.message = ""
+            self.say("")  # the colour too: notes alone must not inherit a red
             try:
                 self.key(key)
             except (InputError, WorkError) as e:

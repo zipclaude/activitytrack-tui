@@ -294,6 +294,23 @@ class ScreenTest(unittest.TestCase):
             sc.run()
         self.assertIn("RuntimeError: boom", sc.message)
 
+    def test_notes_alone_are_yellow_after_an_error(self):
+        from activitytrack.app import InputError
+        sc = self.screen
+        sc.win = Window(["x", "y", "q"])
+        sc._colours = sc.draw = lambda: None
+        seen = []
+
+        def key(k):
+            if k == "x":
+                raise InputError("no")
+            sc.notes = ["a note"]
+            sc._show_notes()
+            seen.append((sc.message, sc.message_colour))
+        sc.key = key
+        sc.run()
+        self.assertEqual(seen, [("a note", "yellow")])
+
 
 class FlowsTest(ScreenTest):
     """The commands of the activity model 1.0 through the keys (ACTIVITY-MODEL.md §3, §3.2)."""
