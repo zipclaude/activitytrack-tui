@@ -56,7 +56,7 @@ The selected to-do is done.
 The period and the states of the list.
 .TP
 .B r
-Sync now.
+Sync now; it also dismisses the notices of the sync shown in the header.
 .TP
 .B a
 Updates: asks the server this PC is paired with for a newer version. Its
@@ -70,6 +70,13 @@ it.
 .TP
 .BR q ", " Esc
 Quit; in a popup, close it.
+.SH NOTICES
+After a key that moves something the user did not ask for (an end moved
+back, a planned return trip or segment removed) the message line says so, in
+yellow. The header keeps the notices of the sync (an edit not applied after
+the realignment with the server) until
+.B r
+dismisses them; those not dismissed go after 7 days.
 .SH OPTIONS
 .TP
 .BI \-\-data " folder"

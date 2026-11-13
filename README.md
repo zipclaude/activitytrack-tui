@@ -19,9 +19,13 @@ application or `activitytrack pair`.
 | p, s, v | pause/resume, stop, travel (asks the questions of the model: work completed? return trip?) |
 | d | to-do done |
 | f, g | period, states of the list |
-| r | sync now |
+| r | sync now; dismiss the notices of the sync |
 | a | updates: ask the paired server for a newer version, download it |
 | q, Esc | quit, close a popup |
+
+A command that moves something you did not ask for (an end moved back, a planned return trip or segment
+removed) says so in the message line; the notices of the sync (an edit not applied after the realignment)
+stay in the header until `r`, or 7 days.
 
 `man activitytrack-tui` has the details.
 
