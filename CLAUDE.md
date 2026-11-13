@@ -42,6 +42,7 @@ The job `windows-wine` runs them under Wine on the local runner in every merge r
 ## 3. A release touches
 
 - `.gitlab/lib-ref` (tag of the library), `activitytrack_tui/__init__.py` (version), `debian/changelog`, `debian/control` (dependency on the library), the man page `.TH`.
+- `CHANGELOG.md` (upstream changelog, installed by `dh_installchangelogs`): the section of the release, only changes in behaviour, compatibility and features. Bug fixes are not listed one by one: a single line "Various bug fixes." per release; only security fixes are listed, under "Security", with their issue number.
 - The Windows executable is built with PyInstaller (`requirements-windows.txt`, `requirements-build-windows.txt`).
 
 ## 4. GitHub backup
