@@ -377,6 +377,30 @@ class FlowsTest(ScreenTest):
         self.assertEqual(self.app.work.entry(worked)["mode"], PAUSE)
         self.assertEqual(self.asked, [])
 
+    def test_with_only_a_suspended_activity_s_v_and_p_act_on_it(self):
+        from activitytrack.work import PAUSE, TRAVEL, WORK
+        work = self.app.work
+
+        def suspended():
+            uid = self.start()
+            work.suspend(uid)
+            self.assertIsNone(work.open_segment(uid))
+            return uid
+        self.answers()
+        uid = suspended()
+        self.screen.key("s")
+        self.assertEqual(work.entry(uid)["status"], "CLOSED")
+        uid = suspended()
+        self.screen.key("v")
+        self.assertEqual(work.open_segment(uid)["kind"], TRAVEL)
+        work.stop(uid)
+        uid = suspended()
+        self.screen.key("p")
+        self.assertEqual(work.open_segment(uid)["kind"], WORK)
+        self.screen.key("p")
+        self.assertEqual(work.entry(uid)["mode"], PAUSE)
+        self.assertEqual(self.asked, [])
+
     def test_reopen_asks_to_confirm(self):
         uid = self.start()
         self.app.work.stop(uid)

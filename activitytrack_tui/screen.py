@@ -330,10 +330,17 @@ class Screen:
             return self.rows[self.sel]
         return None
 
+    def _running_one(self):
+        """The activity being worked; when none has an open segment, the only running one (suspended)."""
+        try:
+            return self.app.running_one(active_only=True)
+        except InputError:
+            return self.app.running_one()
+
     def _shortcut(self, what):
         row = self.current()
         if not row or row.kind != "entry":
-            entry = self.app.running_one(active_only=True)
+            entry = self._running_one()
         else:
             entry = row.record
         acts = texts.entry_actions(self.app.work, entry)
@@ -342,8 +349,10 @@ class Screen:
         elif what == "travel":
             pick = next((a for a in acts if a.kind == TRAVEL), None)
         else:
-            # pause, or resume from it: the second button of a pause is "Riprendi"
-            pick = next((a for a in acts if a.kind == PAUSE or a.label == _("Riprendi")), None)
+            # pause, or resume from it: the second button of a pause is "Riprendi"; of a suspended
+            # activity, the work
+            pick = next((a for a in acts if a.kind == PAUSE or a.label == _("Riprendi")
+                         or (a.verb == "resume" and a.kind == WORK)), None)
         if pick is None:
             raise InputError(_("Comando non possibile in questo stato."))
         self._act(entry, pick.verb, pick.kind)
