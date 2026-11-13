@@ -37,7 +37,7 @@ jobs:
     steps:
       - id: check
         run: |
-          stable=false; beta=false
+          stable=true; beta=false
           if [ "$GITHUB_REF_TYPE" = tag ]; then
             # stable: vX.Y.Z[.W]; beta (any suffix): vX.Y.Z-beta-N
             if echo "$GITHUB_REF_NAME" | grep -Eq '^v[0-9]+(\.[0-9]+)*$'; then stable=true; fi
