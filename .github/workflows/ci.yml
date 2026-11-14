@@ -42,7 +42,7 @@ jobs:
     steps:
       - id: check
         run: |
-          stable=false; pre=false
+          stable=false; pre=true  # TRIAL: the pre-release tag path on a branch
           if [ "$GITHUB_REF_TYPE" = tag ]; then
             # stable: vX.Y.Z[.W]; pre-release (any suffix): vX.Y.Z-beta-N, vX.Y.Z-alfa-N
             if echo "$GITHUB_REF_NAME" | grep -Eq '^v[0-9]+(\.[0-9]+)*$'; then stable=true; fi
@@ -267,7 +267,7 @@ jobs:
   windows-wine-exe:
     # a run started on a branch (never on a tag: windows-exe builds it there)
     needs: [plan, linux, windows-wine, windows]
-    if: ${{ !failure() && !cancelled() && github.ref_type == 'branch' }}
+    if: ${{ false }}  # TRIAL: as on a tag
     runs-on: ubuntu-latest
     container:
       image: tobix/pywine:3.13
@@ -321,7 +321,7 @@ jobs:
   # windows-wine-exe is skipped on a tag: that must not stop the release.
   release:
     needs: [deb, tarball, windows-exe, windows-wine-exe]
-    if: ${{ !failure() && !cancelled() && github.ref_type == 'tag' && startsWith(github.ref_name, 'v') }}
+    if: ${{ !failure() && !cancelled() }}  # TRIAL: as on a tag
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -352,7 +352,16 @@ jobs:
             echo "- Elsewhere: \`pip install activitytrack-tui-$V.tar.gz\` after the library"
           } > notes.md
           ls -l artifacts
+      # TRIAL: nothing is published; the files the release would get are kept as a workflow artifact
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-files
+          path: |
+            artifacts/
+            notes.md
+          retention-days: 7
       - name: Publish
+        if: ${{ false }}  # TRIAL
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
