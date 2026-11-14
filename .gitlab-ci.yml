@@ -1,12 +1,15 @@
 # CI of activitytrack-tui on GitLab. No pipeline starts on its own (not on pushes or tags; a merge
 # request into next starts one, see workflow below): start one by hand ("Run pipeline" on a branch or tag) or with the pipelines API.
-# The Linux jobs run on the owner's local runner (tag local, set in default below), free of
-# charge, with the Wine jobs (windows-wine, windows-wine-exe). The real Windows jobs (windows,
+# The Linux jobs run on the owner's runner (tag testvm, set in default below), free of
+# charge, with the Wine jobs (windows-wine, windows-wine-exe). The real Windows jobs of GitLab (windows,
 # windows-exe: shared, paid runners) run only on a stable tag (vX.Y.Z[.W]), at the release.
 # Started on a branch a pipeline tests and builds the Debian/Ubuntu packages and the tarball, and
 # publishes nothing (windows-wine-exe builds the executable under Wine, not tried); started on a stable
-# tag vX.Y.Z it builds the Windows executable on real Windows, tries everything and publishes the release;
-# on a beta tag vX.Y.Z-beta-N the executable comes from Wine, built and not started. The library is python3-activitytrack at the tag in .gitlab/lib-ref.
+# tag vX.Y.Z it builds the Windows executable on real Windows, tries everything and publishes the release.
+# On a pre-release tag (vX.Y.Z-alfa-N, vX.Y.Z-beta-N) the real Windows jobs run on GitHub instead, free:
+# the GitHub backup's workflow starts by itself on the tag the push mirror brings there, and windows-github
+# waits for it and takes its executable (WINDOWS_GATE=skip: the Wine build instead, see windows-github).
+# The library is python3-activitytrack at the tag in .gitlab/lib-ref.
 
 # A merge request into next also starts a pipeline: the jobs linux and windows-wine run in it, on the
 # local runner (the others need a tag or a pipeline started by hand).
@@ -53,8 +56,8 @@ linux:
 windows:
   stage: test
   tags: [saas-windows-medium-amd64]
-  # Windows only at a stable release (vX.Y.Z[.W]): the shared Windows runners are paid. A beta
-  # (vX.Y.Z-beta-N) is tried under Wine, on the local runner (windows-wine, windows-wine-exe)
+  # Windows only at a stable release (vX.Y.Z[.W]): the shared Windows runners are paid. A pre-release
+  # (vX.Y.Z-beta-N) is tried on GitHub's Windows runners (windows-github), and under Wine here (windows-wine)
   rules:
     - if: $TESTVM || $CI_COMMIT_BRANCH =~ /^testvm\//
       when: never
@@ -69,9 +72,10 @@ windows:
     - python -m pip install -c requirements-windows.txt "git+$env:LIB_URL@$lib"
     - python -m unittest discover -s tests -t . -v
 
-# The Windows code paths under Wine on the local runner (free): the tests of the Windows job, and,
-# for a beta or a pipeline started by hand, the executable. Wine cannot start a PyInstaller bundle
-# (python313.dll does not initialise), so the executable is built but not tried: the beta's notes say so.
+# The Windows code paths under Wine on the owner's runner (free): the tests of the Windows job (the quick
+# signal, in every pipeline), and, for a pipeline started by hand on a branch (or a pre-release with
+# WINDOWS_GATE=skip), the executable. Wine cannot start a PyInstaller bundle (python313.dll does not
+# initialise), so that executable is built but not tried: the release notes say so.
 windows-wine:
   stage: test
   # a pipeline started with TESTVM=1, or on a branch testvm/*, runs the testvm jobs only (docs: activitytrack-doc agents/testvm-ci.md)
@@ -171,8 +175,8 @@ windows-exe:
   stage: package
   # one executable for the console, with windows-curses; not signed (no costs: desktop's D10)
   tags: [saas-windows-medium-amd64]
-  # Windows only at a stable release (vX.Y.Z[.W]): the shared Windows runners are paid. A beta
-  # (vX.Y.Z-beta-N) is tried under Wine, on the local runner (windows-wine, windows-wine-exe)
+  # Windows only at a stable release (vX.Y.Z[.W]): the shared Windows runners are paid. A pre-release
+  # takes the executable built and tried on GitHub's Windows runners (windows-github)
   rules:
     - if: $TESTVM || $CI_COMMIT_BRANCH =~ /^testvm\//
       when: never
@@ -205,6 +209,7 @@ windows-exe:
     paths: ["dist/activitytrack-tui-*-windows.zip"]
     expire_in: 30 days
 
+# a pipeline started by hand on a branch; on a pre-release tag only with WINDOWS_GATE=skip (GitHub down)
 windows-wine-exe:
   stage: package
   image: tobix/pywine:3.13
@@ -213,7 +218,7 @@ windows-wine-exe:
   rules:
     - if: $TESTVM || $CI_COMMIT_BRANCH =~ /^testvm\//
       when: never
-    - if: $CI_COMMIT_TAG =~ /^v[0-9]+(\.[0-9]+)*-/
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]+(\.[0-9]+)*-/ && $WINDOWS_GATE == "skip"
     - if: $CI_COMMIT_BRANCH && ($CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api")
   before_script:
     - mkdir -p /tmp/xdg && chmod 700 /tmp/xdg && export XDG_RUNTIME_DIR=/tmp/xdg
@@ -241,8 +246,41 @@ windows-wine-exe:
     paths: ["dist/activitytrack-tui-*-windows.zip"]
     expire_in: 30 days
 
+# Pre-releases (vX.Y.Z-alfa-N, vX.Y.Z-beta-N, activitytrack/activitytrack-doc#1): the real Windows jobs
+# (windows, windows-exe) run on GitHub, free. The push mirror brings the tag to the GitHub backup, whose
+# workflow starts by itself on a pre-release tag and, when green, publishes a GitHub pre-release with the
+# executable and SHA256SUMS. This job waits for that run (matched by the tag's commit), fails unless it is
+# green, and downloads the executable (checked against SHA256SUMS) for the release below, under the name a
+# stable release gives it. Public API and assets: no secret needed; an optional masked variable
+# GITHUB_TOKEN_RO only raises GitHub's rate limit. Script and its options: .gitlab/github-windows-gate.sh.
+# GitHub down: set the project variable WINDOWS_GATE=skip (Settings > CI/CD > Variables: pipeline
+# variables are not allowed in these projects), run the tag pipeline again, remove the variable: the
+# executable then comes from Wine (windows-wine-exe), built and not started, and the notes say so.
+windows-github:
+  stage: package
+  # it starts at once and waits for GitHub; the release (next stage) waits for it
+  needs: []
+  image: alpine:3.22
+  rules:
+    - if: $TESTVM || $CI_COMMIT_BRANCH =~ /^testvm\//
+      when: never
+    - if: $WINDOWS_GATE == "skip"
+      when: never
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]+(\.[0-9]+)*-/
+  timeout: 2h
+  variables:
+    GATE_REPO: zipclaude/activitytrack-tui
+  script:
+    - apk add --no-cache curl jq coreutils
+    - V="${CI_COMMIT_TAG#v}"
+    - GATE_FILES="activitytrack-tui-$V-windows.zip" sh .gitlab/github-windows-gate.sh
+  artifacts:
+    paths: ["dist/activitytrack-tui-*-windows.zip", "windows-gate.txt"]
+    expire_in: 30 days
+
 # the files go to the project's Generic Packages and the release links them
-# (permalinks .../-/releases/<tag>/downloads/<file>); a version with a suffix is a beta
+# (permalinks .../-/releases/<tag>/downloads/<file>); a version with a suffix is a pre-release, and its
+# Windows executable comes from windows-github (windows-wine-exe with WINDOWS_GATE=skip)
 release:
   stage: release
   image: alpine:3.22
@@ -265,7 +303,14 @@ release:
     - cd ..
     - |
       {
-        case "$V" in *-*) echo "activitytrack-tui $V: a test release. Its Windows executable was built under Wine and has not been started: try it before relying on it." ;; *) echo "activitytrack-tui $V." ;; esac
+        case "$V" in
+          *-*) if [ -f windows-gate.txt ]; then
+                 echo "activitytrack-tui $V: a test release. Its Windows executable was built and tried on real Windows by the GitHub backup's CI: $(sed -n 's/^run=//p' windows-gate.txt)"
+               else
+                 echo "activitytrack-tui $V: a test release. Its Windows executable was built under Wine and has not been started (WINDOWS_GATE=skip: the Windows check on GitHub was skipped): try it before relying on it."
+               fi ;;
+          *) echo "activitytrack-tui $V." ;;
+        esac
         echo
         echo "ActivityTrack in the terminal, full screen: the same application as ActivityTrack Desktop and the command line, on the same data and pairing."
         echo
