@@ -61,10 +61,14 @@ class LanguageTest(unittest.TestCase):
         self.keep(choice="de")
         self.assertEqual(self.language("it_IT"), "de")
 
-    def test_an_invalid_policy_language_is_ignored(self):
-        for value in ("fr", "de_AT", "", None, 3, ["it"]):
-            self.keep(policy(language=value), choice=None)
-            self.assertEqual(self.language("es_ES"), "es", value)
+    def test_a_policy_language_that_is_no_language_forces_english(self):
+        # present but invalid: neither the choice nor the system applies; null is as if absent
+        for value in ("fr", "de_AT", "", 3, True, ["it"], {}):
+            self.keep(policy(language=value), choice="de")
+            self.assertEqual(self.language("es_ES"), "en", value)
+        self.keep(policy(language=None), choice=None)
+        self.assertEqual(self.language("es_ES"), "es")
+        # not a policy at all: there is none
         self.keep("not a policy")
         self.assertEqual(self.language("es_ES"), "es")
 
