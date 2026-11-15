@@ -64,7 +64,7 @@ class TerminalTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             pid, fd = pty.fork()
             if pid == 0:
-                os.environ.update(TERM="xterm", LC_ALL="it_IT.UTF-8", LINES="30", COLUMNS="100")
+                os.environ.update(TERM="xterm", LC_ALL="it_IT.UTF-8", LANGUAGE="it", LINES="30", COLUMNS="100")
                 os.execvp(sys.executable, [sys.executable, "-m", "activitytrack_tui", "--data", d])
             seen, end = b"", time.time() + 15
             while b"IN CORSO" not in seen and time.time() < end:
