@@ -501,7 +501,7 @@ class Screen:
         k = self.menu(_("Tipo di assenza"), [texts.ABSENCE_KINDS[x] for x in kinds])
         if k is None:
             return
-        first = self.prompt(_("Dal giorno (per esempio oggi, 3/11)"), "oggi")
+        first = self.prompt(_("Dal giorno (per esempio oggi, 3/11)"), _("oggi"))
         if not first:
             return
         last = self.prompt(_("Al giorno (vuoto: lo stesso)"))

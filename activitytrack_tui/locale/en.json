@@ -10,7 +10,7 @@
  "Avvia viaggio di ritorno": "Start return trip",
  "Comando non possibile in questo stato.": "Command not possible in this state.",
  "Controllo…": "Checking…",
- "Da fare": "To do",
+ "Da fare": "To-dos",
  "Dal giorno (per esempio oggi, 3/11)": "From day (for example today, 3/11)",
  "Descrizione": "Description",
  "Eliminare l'attività?": "Delete the activity?",
@@ -59,5 +59,6 @@
  "dalle %s": "since %s",
  "fino alle %s": "until %s",
  "nessuno": "none",
- "⏎ azioni  n nuovo  p pausa  s stop  v viaggio  d fatto  f periodo  g stato  r sincronizza  a aggiornamenti  q esci": "⏎ actions  n new  p pause  s stop  v travel  d done  f period  g states  r sync  a updates  q quit"
+ "⏎ azioni  n nuovo  p pausa  s stop  v viaggio  d fatto  f periodo  g stato  r sincronizza  a aggiornamenti  q esci": "⏎ actions  n new  p pause  s stop  v travel  d done  f period  g states  r sync  a updates  q quit",
+ "oggi": "today"
 }

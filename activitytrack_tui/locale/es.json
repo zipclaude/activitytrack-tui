@@ -1,6 +1,6 @@
 {
  "(nessuno)": "(ninguno)",
- "ActivityTrack nel terminale, a schermo intero: le attività in corso e la lista della Home, con i comandi da tastiera.": "ActivityTrack en el terminal, a pantalla completa: las actividades en curso y la lista de Inicio, con órdenes de teclado.",
+ "ActivityTrack nel terminale, a schermo intero: le attività in corso e la lista della Home, con i comandi da tastiera.": "ActivityTrack en el terminal, a pantalla completa: las actividades en curso y la lista de Inicio, con comandos de teclado.",
  "Adesso": "Ahora",
  "Aggiornamenti": "Actualizaciones",
  "Al giorno (vuoto: lo stesso)": "Hasta el día (vacío: el mismo)",
@@ -10,14 +10,14 @@
  "Avvia viaggio di ritorno": "Iniciar viaje de vuelta",
  "Comando non possibile in questo stato.": "Comando no posible en este estado.",
  "Controllo…": "Comprobando…",
- "Da fare": "Por hacer",
+ "Da fare": "Pendientes",
  "Dal giorno (per esempio oggi, 3/11)": "Desde el día (por ejemplo hoy, 3/11)",
  "Descrizione": "Descripción",
  "Eliminare l'attività?": "¿Eliminar la actividad?",
  "Errore inatteso: %s": "Error inesperado: %s",
  "Finestra troppo piccola.": "Ventana demasiado pequeña.",
  "Finita alle (HH:MM, o giorno e ora)": "Terminada a las (HH:MM, o día y hora)",
- "Già iniziata": "Ya iniciada",
+ "Già iniziata": "Ya empezada",
  "Hai completato l'attività lavorativa?": "¿Has completado la actividad laboral?",
  "I dati locali non sono leggibili (%s): %s": "Los datos locales no se pueden leer (%s): %s",
  "In corso": "En curso",
@@ -35,7 +35,7 @@
  "Orario, da-a (per esempio 9:00-11:30; vuoto: la giornata)": "Hora, de-a (por ejemplo 9:00-11:30; vacío: todo el día)",
  "Passata": "Pasada",
  "Pianificazione: giorno [ora [durata in minuti]] (vuoto: nessuna)": "Planificación: día [hora [duración en minutos]] (vacío: ninguna)",
- "Posticipa": "Aplazar",
+ "Posticipa": "Posponer",
  "Priorità": "Prioridad",
  "Quando": "Cuándo",
  "Riaprire l'attività?": "¿Reabrir la actividad?",
@@ -59,5 +59,6 @@
  "dalle %s": "desde las %s",
  "fino alle %s": "hasta las %s",
  "nessuno": "ninguno",
- "⏎ azioni  n nuovo  p pausa  s stop  v viaggio  d fatto  f periodo  g stato  r sincronizza  a aggiornamenti  q esci": "⏎ acciones  n nuevo  p pausa  s parar  v viaje  d hecho  f periodo  g estados  r sincronizar  a actualizaciones  q salir"
+ "⏎ azioni  n nuovo  p pausa  s stop  v viaggio  d fatto  f periodo  g stato  r sincronizza  a aggiornamenti  q esci": "⏎ acciones  n nuevo  p pausa  s parar  v viaje  d hecho  f periodo  g estados  r sincronizar  a actualizaciones  q salir",
+ "oggi": "hoy"
 }
