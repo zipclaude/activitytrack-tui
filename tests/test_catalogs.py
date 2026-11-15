@@ -103,3 +103,19 @@ class CatalogsTest(unittest.TestCase):
                 if (isinstance(node, ast.Constant) and isinstance(node.value, str) and node.value in keys
                         and id(node) not in wrapped and (path.name, node.value) not in NOT_TEXTS):
                     self.fail(f"{path.name}:{node.lineno}: {node.value!r} is not passed to _()")
+
+    def test_the_default_day_of_an_absence_is_read_back_in_every_language(self):
+        # the prompt of a new absence suggests _("oggi"); Enter gives it to parse_day as it is
+        from datetime import date
+
+        from activitytrack.app import parse_day
+        today = date(2026, 11, 15)
+        self.assertEqual(parse_day("oggi", today), today)
+        for lang in ("en", "de", "es"):
+            try:
+                self.assertEqual(i18n.set_language(lang), lang)
+                i18n.add_catalogs(PACKAGE / "locale")
+                self.assertNotEqual(i18n._("oggi"), "oggi", lang)
+                self.assertEqual(parse_day(i18n._("oggi"), today), today, lang)
+            finally:
+                i18n.set_language("it")
