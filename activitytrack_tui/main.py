@@ -8,26 +8,31 @@ import sys
 from pathlib import Path
 
 import activitytrack
-from activitytrack.i18n import _, add_catalogs, set_language, system_language
+from activitytrack.i18n import _, add_catalogs, resolve_language, set_language, system_language
 
 from . import __version__
 
 
 def _language(folder):
-    from activitytrack.policy import stored
+    """The policy's language, else the user's choice (the desktop's setting, in the same data), else the system's."""
     from activitytrack.store import Store
-    forced = None
+    store = None
     db = Path(folder) / "activitytrack.sqlite3"
     if db.exists():
         try:
             store = Store(db)
-            forced = stored(store).language
-            store.close()
-        except sqlite3.Error:
+        except (sqlite3.Error, OSError):
             # unreadable: the language of the system, the error comes at the start below
             pass
+    try:
+        language = resolve_language(store, system=system_language())
+    except sqlite3.Error:
+        language = resolve_language(system=system_language())
+    finally:
+        if store is not None:
+            store.close()
     add_catalogs(Path(__file__).with_name("locale"))
-    return set_language(forced or system_language())
+    return set_language(language)
 
 
 def _log_errors(folder):
