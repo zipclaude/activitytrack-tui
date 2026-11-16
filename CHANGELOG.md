@@ -12,7 +12,7 @@ and is final at the release.
 ### Compatibility
 
 - Needs the library `python3-activitytrack` 1.0.0~rc-1 or later, and so a server on 1.0
-  (sync wire schema 3).
+  (sync wire schema 4, 3 before beta-2).
 - The data migrate by themselves to the activity model when the store is first opened; the
   to-do is now an activity in the state "Da fare".
 - The key `u` (suspend) and the completion sheet are gone: an activity is suspended when
