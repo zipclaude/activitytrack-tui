@@ -26,6 +26,8 @@ and is final at the release.
   deleted activities go to the bin and can be restored.
 - Travel from work asks whether the work is complete; stop offers the return trip; reopen
   asks to confirm. Priorities are named (none to emergency).
+- The Windows zip carries, in its `third-party` folder, the licences of Python and of the libraries
+  the executable bundles, with the addresses of their sources (#19).
 
 ### Behaviour
 

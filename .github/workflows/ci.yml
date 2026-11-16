@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Flavio Visentin <flavio-activitytrack@infraconsulting.it>
 # CI of activitytrack-tui on GitHub, the backup of the GitLab project: it mirrors .gitlab-ci.yml
 # (keep the two in step), so the backup can test, package and release on its own if GitLab is unavailable.
 # One thing runs on its own: the push of a pre-release tag (vX.Y.Z-alfa-N, vX.Y.Z-beta-N), which the push
@@ -256,6 +258,8 @@ jobs:
       - name: Zip
         run: |
           New-Item -ItemType Directory -Path pack | Out-Null
+          # the notices of what the executable bundles (issue #19)
+          python packaging/third_party.py pack/third-party "ActivityTrack TUI" https://gitlab.com/activitytrack/activitytrack-tui
           Copy-Item dist/activitytrack-tui.exe, LICENSE, README.md pack/
           Compress-Archive -Path pack/* -DestinationPath "dist/activitytrack-tui-$env:AT_VERSION-windows.zip"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -307,7 +311,8 @@ jobs:
       - name: Zip
         run: |
           mkdir pack && cp dist/activitytrack-tui.exe LICENSE README.md pack/
-          (cd pack && wine python -m zipfile -c "../dist/activitytrack-tui-$AT_VERSION-windows.zip" activitytrack-tui.exe LICENSE README.md)
+          wine python packaging/third_party.py pack/third-party "ActivityTrack TUI" https://gitlab.com/activitytrack/activitytrack-tui
+          (cd pack && wine python -m zipfile -c "../dist/activitytrack-tui-$AT_VERSION-windows.zip" activitytrack-tui.exe LICENSE README.md third-party)
           ls -l dist/*.zip
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
