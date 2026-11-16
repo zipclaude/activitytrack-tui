@@ -35,6 +35,7 @@ and is final at the release.
   segment removed) is shown in the message line, where the result or error of the last
   command shows.
 - The notices of the sync stay in the header; the key `r` (sync now) dismisses those read.
+- Licences: every source file carries its licence header, and the Windows zip carries the licences of what the executable bundles.
 
 Various bug fixes.
 

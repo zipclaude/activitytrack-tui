@@ -1,10 +1,11 @@
 activitytrack-tui (1.0.0~rc-1-1) unstable; urgency=medium
 
   * RELEASE CANDIDATE 1 of 1.0 (tag v1.0.0-rc-1), released together with the
-    app 1.0.0-rc-1: the fixes of the owner's test of beta-3 and the features
-    since (the changes are in CHANGELOG.md, the upstream changelog). Sync wire
-    schema 4, so the app, the server, the library and the interfaces must all
-    be 1.0.0-rc-1.
+    app 1.0.0-rc-1: no functional change since 1.0.0-beta-3, only the licence
+    notices (headers of the sources, licences of what the Windows files
+    bundle). Sync wire schema 4, so the app, the server, the library and the
+    interfaces must all be 1.0.0-rc-1. The changes of 1.0 are in CHANGELOG.md,
+    the upstream changelog.
 
  -- ActivityTrack contributors <noreply@activitytrack.invalid>  Mon, 16 Nov 2026 21:30:36 +0000
 
