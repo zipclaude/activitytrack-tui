@@ -34,7 +34,7 @@ class Row:
 
 
 def state_text(state, since=""):
-    """"▶ In lavoro dalle 09:15": the symbol, the label and since when (§2.2)."""
+    """"▶ Lavoro dalle 09:15": the symbol, the label and since when (§2.2)."""
     text = f"{texts.DISPLAY_SYMBOLS[state]} {texts.display_label(state)}"
     return text + (" " + _("dalle %s") % since if since else "")
 

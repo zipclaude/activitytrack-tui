@@ -34,7 +34,7 @@ class RowsTest(unittest.TestCase):
         labels = [label for label, _a in R.actions(self.app, entry)]
         self.assertEqual(labels[:3], ["Riprendi", "Viaggio", "Stop"])
         self.assertNotIn("Sospendi", labels)
-        self.assertIn("‖ In pausa", entry.detail)
+        self.assertIn("‖ Pausa", entry.detail)
         todo = next(r for r in rows if r.kind == "todo")
         self.assertEqual([a for _l, a in R.actions(self.app, todo)][:3],
                          [("act", "start", "WORK"), ("act", "start", "TRAVEL"), ("act", "tick", None)])
