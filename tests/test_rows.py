@@ -41,7 +41,7 @@ class RowsTest(unittest.TestCase):
         self.assertIn("Alta", todo.detail)
         self.assertNotIn("P3", todo.detail)
         self.assertEqual(R.next_period(0), -1)
-        self.assertEqual(R.show_label(["MISSING", "TODO"]), "Da fare, Dettagli mancanti")
+        self.assertEqual(R.show_label(["MISSING", "TODO"]), "Da fare, Incompleta")
 
     def test_an_absence_has_no_description_or_client_to_edit(self):
         a = self.app.work.save_absence(None, date(2026, 11, 16), absence_kind="LEAVE", start_min=540, end_min=600)

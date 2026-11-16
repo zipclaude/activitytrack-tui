@@ -438,7 +438,7 @@ class FlowsTest(ScreenTest):
         self.screen._new_todo()
         (t,) = self.app.work.todo_list()
         self.assertEqual((t["activity"], t["priority"], t["planStartMin"], t["durationMin"]), ("Backup", 4, 1380, 30))
-        self.assertEqual(self.asked[0][1][4], "Urgente")
+        self.assertEqual(self.asked[0][1][4], "Urgenza")
 
     def test_new_absence(self):
         self.screen.pick = lambda type_, title, allow_none=False: ""
