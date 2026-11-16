@@ -26,7 +26,7 @@ def _language(folder):
             pass
     try:
         language = resolve_language(store, system=system_language())
-    except sqlite3.Error:
+    except (sqlite3.Error, OSError):
         language = resolve_language(system=system_language())
     finally:
         if store is not None:
