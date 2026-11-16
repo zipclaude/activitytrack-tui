@@ -8,9 +8,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import activitytrack_tui
 from activitytrack import i18n
 
-PACKAGE = Path(__file__).resolve().parent.parent / "activitytrack_tui"
+# the code under test, wherever it is: the checkout, or the installed package in the packages' job
+PACKAGE = Path(activitytrack_tui.__file__).resolve().parent
 SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "strings.py"
 LIBRARY = Path(i18n.__file__).resolve().parent / "locale"
 
