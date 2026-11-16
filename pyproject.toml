@@ -12,7 +12,7 @@ readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
 requires-python = ">=3.11"
 # the library brings cryptography, keyring and, on Windows, tzdata; Windows needs curses too
-dependencies = ["activitytrack>=1.0.0b3", "windows-curses; sys_platform == 'win32'"]
+dependencies = ["activitytrack>=1.0.0rc1", "windows-curses; sys_platform == 'win32'"]
 
 [project.scripts]
 activitytrack-tui = "activitytrack_tui.main:main"

@@ -1,3 +1,13 @@
+activitytrack-tui (1.0.0~rc-1-1) unstable; urgency=medium
+
+  * RELEASE CANDIDATE 1 of 1.0 (tag v1.0.0-rc-1), released together with the
+    app 1.0.0-rc-1: the fixes of the owner's test of beta-3 and the features
+    since (the changes are in CHANGELOG.md, the upstream changelog). Sync wire
+    schema 4, so the app, the server, the library and the interfaces must all
+    be 1.0.0-rc-1.
+
+ -- ActivityTrack contributors <noreply@activitytrack.invalid>  Mon, 16 Nov 2026 21:30:36 +0000
+
 activitytrack-tui (1.0.0~beta-3-1) unstable; urgency=medium
 
   * BETA pre-release of 1.0 (tag v1.0.0-beta-3), released together with the
