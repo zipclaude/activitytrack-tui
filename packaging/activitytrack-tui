@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 # SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Flavio Visentin <flavio-activitytrack@infraconsulting.it>
 """activitytrack-tui, as installed by the package: the code in /usr/share/activitytrack-tui."""
 import sys
 

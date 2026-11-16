@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Flavio Visentin <flavio-activitytrack@infraconsulting.it>
 """
 What the screen lists, without curses (tested on its own): the activities
 running, then the Home list with its filters; each row with its text, its

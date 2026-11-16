@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Flavio Visentin <flavio-activitytrack@infraconsulting.it>
 """
 The full screen (curses): a header with the sync's state, the rows of
 rows.py with a selection, a footer with the keys; popups for the actions,

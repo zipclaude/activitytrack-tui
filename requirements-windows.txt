@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Flavio Visentin <flavio-activitytrack@infraconsulting.it>
 # The libraries bundled in the Windows executable, as the desktop's
 # installer: the versions of Debian 13 where Windows wheels exist.
 # A constraint (-c) when the library is installed, so pip keeps them.

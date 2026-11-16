@@ -3,7 +3,7 @@ Upstream-Name: activitytrack-tui
 Source: https://gitlab.com/activitytrack/activitytrack-tui
 
 Files: *
-Copyright: 2026 ActivityTrack contributors
+Copyright: 2026 Flavio Visentin <flavio-activitytrack@infraconsulting.it>
 License: GPL-3+
 
 License: GPL-3+

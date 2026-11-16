@@ -30,6 +30,7 @@ The whole workflow is in
 - English for code, comments, commits and docs; Italian with the maintainer.
 - Indentation as the surrounding code. No secrets, tokens or personal data in the repository: it is public.
 - Commits end with the `Co-Authored-By:` line naming the model actually used.
+- A new file starts with the two SPDX lines of the others (`SPDX-License-Identifier`, `SPDX-FileCopyrightText`): see the README's License section.
 
 ## 2. Tests
 

@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Flavio Visentin <flavio-activitytrack@infraconsulting.it>
 """
 The interface's texts to translate: every literal passed to _() in the
 package, and "context|text" for those of pgettext(context, text). With

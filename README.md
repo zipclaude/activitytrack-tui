@@ -52,4 +52,8 @@ flake8 activitytrack_tui tests packaging/activitytrack-tui
 
 ## License
 
-GPL-3.0-or-later.
+Copyright © 2026 Flavio Visentin <flavio-activitytrack@infraconsulting.it>.
+
+The text interface is free software under the GNU General Public License, version 3 or (at your option) any later version (`GPL-3.0-or-later`, text in [LICENSE](LICENSE)), without any warranty. Every file that can carry a comment starts with its `SPDX-License-Identifier` and `SPDX-FileCopyrightText` lines; the others (JSON, test data, images) are under the same licence.
+
+The Windows zip also holds Python and the libraries the executable needs, each under its own licence: their notices, licence files and the addresses of their sources are in its `third-party` folder (made by `packaging/third_party.py` at build time).

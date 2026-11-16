@@ -1,4 +1,6 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Flavio Visentin <flavio-activitytrack@infraconsulting.it>
 # Windows gate of a pre-release (activitytrack/activitytrack-doc#1): the real Windows jobs of a
 # pre-release tag run on GitHub Actions (free on the public backup), not on GitLab's paid runners.
 # This script, run by the GitLab job windows-github, waits for the GitHub workflow run of the
